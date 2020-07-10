@@ -1,6 +1,6 @@
 #!/usr/local/env groovy
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION.
+ * Copyright (c) 2020, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 /**
 *
-* Jenkins file for running spark3.0 integration tests
+* Jenkinsfile for integration tests against spark-3.1.0-SNAPSHOT
 *
 */
 
@@ -48,12 +48,27 @@ pipeline {
         ARTIFACTORY_NAME = "${ArtifactoryConstants.ARTIFACTORY_NAME}"
         URM_URL = "${urmUrl}"
         MVN_URM_MIRROR='-s jenkins/settings.xml -P mirror-apache-to-urm'
+        SPARK_VER='3.1.0-SNAPSHOT'
     }
 
     stages {
+        stage('Build against spark-3.1.0-SNAPSHOT') {
+            agent { label 'docker-gpu' }
+            steps {
+                script {
+                    def CUDA_NAME=sh(returnStdout: true,
+                        script: '. jenkins/version-def.sh>&2 && echo -n $CUDA_CLASSIFIER | sed "s/-/./g"')
+                    def IMAGE_NAME="$ARTIFACTORY_NAME/sw-spark-docker/plugin:dev-ubuntu16-$CUDA_NAME"
+                    sh "docker pull $IMAGE_NAME"
+                    docker.image(IMAGE_NAME)inside("--runtime=nvidia -v ${HOME}/.zinc:${HOME}/.zinc:rw") {
+                        sh "mvn -U -B clean package $MVN_URM_MIRROR -Dmaven.repo.local=$WORKSPACE/.m2 -Dspark.version=$SPARK_VER"
+                    }
+                }
+            }
+        }
+
         stage('IT on 3.1.0-SNAPSHOT') {
             agent { label 'docker-gpu' }
-            environment {SPARK_VER='3.0.1-SNAPSHOT'}
             steps {
                 script {
                     def CUDA_NAME=sh(returnStdout: true,
