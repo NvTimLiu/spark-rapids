@@ -1,0 +1,10 @@
+podTemplate (cloud:'blossom-cloud') {
+    node(POD_LABEL) {
+        stage('Code checkout method1') {
+            scm checkout
+        }
+        stage ('Build') {
+           sh "ls -l"
+        }
+    }
+}
