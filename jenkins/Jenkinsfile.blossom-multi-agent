@@ -1,5 +1,70 @@
 #!/usr/local/env groovy
 
+/*
+podTemplate (label: 'tim-dev1', cloud:'sc-ipp-blossom-prod', yaml: '''
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: cuda
+    image: xgbci/rapids-plugin-build:ubuntu16-cuda10.1
+    resources:
+          limits:
+            nvidia.com/gpu: 1
+    restartPolicy: Never
+    backoffLimit: 4
+    tty: true
+  nodeSelector:
+    kubernetes.io/os: linux
+    nvidia.com/driver_version: "450.37"
+''') {
+    node('tim-dev1') {
+        stage ('Checkout src') {
+           checkout scm
+        }
+        stage ('Build') {
+           container('cuda') {
+               sh "ls -l && nvidia-smi "
+               sh "mvn package -DskipTests"
+           }
+        }
+    }
+}
+*/
+
+
+/*
+podTemplate (label: 'tim-dev2', cloud:'sc-ipp-blossom-prod', yaml: '''
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: cuda123
+    image: urm.nvidia.com/sw-spark-docker/plugin:dev-ubuntu16-cuda10.1
+    resources:
+          limits:
+            nvidia.com/gpu: 1
+    restartPolicy: Never
+    backoffLimit: 4
+    tty: true
+  nodeSelector:
+    kubernetes.io/os: linux
+    nvidia.com/driver_version: "450.37"
+'''){ }
+
+pipeline {
+    agent {label 'tim-dev2'}
+    stages {
+        stage ('Build in pipeline') {
+            steps {
+                sh "ls -l && mvn --help"
+            }
+        }
+    }
+}
+*/
+
+
 @Library('shared-libs') _
 
 def urmUrl="https://${ArtifactoryConstants.ARTIFACTORY_NAME}/artifactory/sw-spark-maven"
@@ -20,12 +85,11 @@ spec:
 
   nodeSelector:
     kubernetes.io/os: linux
-    nvidia.com/driver_version: 450_08
-    nvidia.com/gpu_type: TITAN_V
+    nvidia.com/driver_version: "450.37"
 """
 println podConf
 def podConfCUDA101=podConf.replace("CUDA_NAME", "cuda10.1").replace("DOCKER_NAME", "cuda10-1")
-//def podConfCUDA100=podConf.replace("CUDA_NAME", "cuda10.0").replace("DOCKER_NAME", "cuda10-0")
+def podConfCUDA100=podConf.replace("CUDA_NAME", "cuda10.0").replace("DOCKER_NAME", "cuda10-0")
 println podConfCUDA101
 
 pipeline {
@@ -33,20 +97,17 @@ pipeline {
         kubernetes {
             label 'tim-pod'
             cloud 'sc-ipp-blossom-prod'
-            yaml "${podConfCUDA101}"
         }
     }
     options {
         ansiColor('xterm')
         timeout(time: 120, unit: 'MINUTES')
- //       buildDiscarder(logRotator(numToKeepStr: '10'))
+        buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
-/*
     parameters {
         string(name: 'REF', defaultValue: '\${sha1}', description: 'Commit to build')
     }
-*/
 
     environment {
         JENKINS_ROOT  = 'jenkins'
@@ -58,7 +119,6 @@ pipeline {
     }
 
     stages {
-/*
         stage('Ubuntu16 CUDA10.0') {
             agent {
                 kubernetes {
@@ -75,9 +135,7 @@ pipeline {
                }
             }
         }
-*/
         stage('Ubuntu16 CUDA10.1') {
-/*
             agent {
                 kubernetes {
                     label 'tim-cuda10.1'
@@ -85,13 +143,11 @@ pipeline {
                     yaml "${podConfCUDA101}"
                 }
             }
-*/
             steps {
                 container('cuda10-1'){
-                   echo " BUILD_SCRIPT: $BUILD_SCRIPT"
+                   echo "REF: $REF, BUILD_SCRIPT: $BUILD_SCRIPT"
                    sh "ls -l"
-                   sh "nvidia-smi"
-                   //sh "mvn package -DskipTests"
+                   sh "mvn package -DskipTests"
                    sh "ls -l /usr/local/"
                }
            }
