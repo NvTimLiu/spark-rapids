@@ -1,4 +1,4 @@
-podTemplate (cloud:'blossom-cloud') {
+podTemplate (cloud:'sc-ipp-blossom-prod') {
     node(POD_LABEL) {
         stage('Code checkout method1') {
             scm checkout
