@@ -1,7 +1,7 @@
 podTemplate (cloud:'sc-ipp-blossom-prod') {
     node(POD_LABEL) {
         stage('Code checkout method1') {
-            scm checkout
+            checkout scm
         }
         stage ('Build') {
            sh "ls -l"
