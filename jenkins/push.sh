@@ -14,21 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-function print_ver(){
-    TAG=$1
-    REPO=$2
-    VERSION=$3
-    SUFFIX=$4
-    
-    if [[ "$VERSION" == *"-SNAPSHOT" ]]; then
-        PREFIX=${VERSION%-SNAPSHOT}
-        TIMESTAMP=`grep -oP '(?<=timestamp>)[^<]+' < $REPO/maven-metadata-$SERVER_ID.xml`
-        BUILD_NUM=`grep -oP '(?<=buildNumber>)[^<]+' < $REPO/maven-metadata-$SERVER_ID.xml`
-        echo $TAG: $PREFIX-$TIMESTAMP-$BUILD_NUM$SUFFIX
-    else
-        echo $TAG: $VERSION$SUFFIX
-    fi
-}
-
-print_ver $1 $2 $3 $4
+cd ..
+git add . && git commit -m "Test blossom" --amend && git push -f tim HEAD:test-blossom
+cd -
