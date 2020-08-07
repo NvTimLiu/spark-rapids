@@ -1,5 +1,9 @@
 #!/usr/local/env groovy
 
+/*
+* DO NOT REVIEW: TEST ONLY
+*/
+
 @Library('shared-libs') _
 
 def urmUrl="https://${ArtifactoryConstants.ARTIFACTORY_NAME}/artifactory/sw-spark-maven"
