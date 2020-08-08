@@ -18,41 +18,31 @@
 /**
 *
 * Jenkinsfile for building rapids-plugin
-* DO NOT REVIEW: TEST PR ONLY
-* 1
 *
 */
 
 @Library('shared-libs') _
 
 def urmUrl="https://${ArtifactoryConstants.ARTIFACTORY_NAME}/artifactory/sw-spark-maven"
+def CUDA_DOCKER="cuda10-1"
+def CUDA_NAME=CUDA_DOCKER.replace("-", ".")
+def IMAGE_NAME="${ArtifactoryConstants.ARTIFACTORY_NAME}/sw-spark-docker/plugin:dev-ubuntu16-$CUDA_NAME"
 
-def IMAGE_NAME="${ArtifactoryConstants.ARTIFACTORY_NAME}/sw-spark-docker/plugin:dev-ubuntu16-CUDA_NAME-blossom"
-
-def pluginDev="""
+def podConf="""
 apiVersion: v1
 kind: Pod
 spec:
   containers:
-  - name: plugin-dev
-    image: IMAGE_NAME
-    imagePullPolicy: IfNotPresent
+  - name: "$CUDA_DOCKER"
+    image: xgbci/rapids-plugin-build:ubuntu16-cuda10.1
     resources:
       limits:
         nvidia.com/gpu: 1
     restartPolicy: Never
     backoffLimit: 4
     tty: true
-  nodeSelector:
-    kubernetes.io/os: linux
-"""
 
-def pluginDocker="""
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-  - name: plugin-docker
+  - name: docker
     image: docker:19.03.1
     command:
     - sleep
@@ -61,7 +51,7 @@ spec:
     env:
       - name: DOCKER_HOST
         value: tcp://localhost:2375
-  - name: plugin-docker-daemon
+  - name: docker-daemon
     image: docker:19.03.1-dind
     securityContext:
       privileged: true
@@ -72,12 +62,14 @@ spec:
   nodeSelector:
     kubernetes.io/os: linux
 """
+println podConf
 
 pipeline {
     agent {
         kubernetes {
-            label 'plugin-any'
+            label 'plugin-dev'
             cloud 'sc-ipp-blossom-prod'
+            yaml "${podConf}"
         }
     }
 
@@ -101,14 +93,6 @@ pipeline {
 
     stages {
         stage('Build docker image') {
-            agent {
-                kubernetes {
-                    label 'plugin-docker'
-                    cloud 'sc-ipp-blossom-prod'
-                    yaml "$pluginDocker"
-                }
-            }
-
             steps {
                 script {
                     //Check if a PR has been committed using git signoff
@@ -116,35 +100,21 @@ pipeline {
                         error "Signed-off-by check FAILED"
                     }
 
-                    container('plugin-docker') {
-                        def CUDA_NAME=sh(returnStdout: true,
-                            script: '. jenkins/version-def.sh>&2 && echo -n $CUDA_CLASSIFIER | sed "s/-/./g"')
+                    container('docker') {
                         def CUDA_VER="$CUDA_NAME" - "cuda"
-                        IMAGE_NAME=IMAGE_NAME.replace("CUDA_NAME", "$CUDA_NAME")
                         sh "docker pull $IMAGE_NAME || true"
                         // Speed up Docker building via '--cache-from $IMAGE_NAME'
                         def buildImage=docker.build(IMAGE_NAME,
                             "-f jenkins/Dockerfile.ubuntu16 --build-arg CUDA_VER=$CUDA_VER --cache-from $IMAGE_NAME -t $IMAGE_NAME .")
-                        // Prepare pluginIT yaml
-                        pluginDev=pluginDev.replace("IMAGE_NAME", "$IMAGE_NAME")
-                        println(pluginDev)
                     }
                 }
             }
         }
         stage('Build on Ubuntu16 CUDA10.1') {
-            agent {
-                kubernetes {
-                    label 'plugin-dev'
-                    cloud 'sc-ipp-blossom-prod'
-                    yaml "$pluginDev"
-                }
-            }
-
             steps {
                 script {
-                    container('plugin-dev') {
-                        sh "$BUILD_SCRIPT"
+                    container('cuda10-1') {
+                        sh "bash $BUILD_SCRIPT"
                         step([$class: 'JacocoPublisher',
                               execPattern: '**/target/jacoco.exec',
                               classPattern: 'target/jacoco_classes/',
