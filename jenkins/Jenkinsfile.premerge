@@ -115,6 +115,7 @@ pipeline {
                     }
 
                     container('plugin-docker') {
+echo "Test GHPRB plugin 2"
                         def CUDA_NAME=sh(returnStdout: true,
                             script: '. jenkins/version-def.sh>&2 && echo -n $CUDA_CLASSIFIER | sed "s/-/./g"')
                         def CUDA_VER="$CUDA_NAME" - "cuda"
