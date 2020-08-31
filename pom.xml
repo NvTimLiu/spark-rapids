@@ -23,7 +23,7 @@
     <artifactId>rapids-4-spark-parent</artifactId>
     <name>RAPIDS Accelerator for Apache Spark Root Project</name>
     <description>The root project of the RAPIDS Accelerator for Apache Spark</description>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.2.0</version>
     <packaging>pom</packaging>
 
     <url>https://github.com/NVIDIA</url>
@@ -572,6 +572,11 @@
         </plugins>
     </build>
     <repositories>
+        <repository>
+            <id>spark.sw.nvidia.com</id>
+            <url>http://apt-sh04:8081/repository/xgboost-spark-release</url>
+        </repository>
+
         <repository>
             <id>snapshots-repo</id>
             <url>https://oss.sonatype.org/content/repositories/snapshots</url>
