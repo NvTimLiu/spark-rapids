@@ -15,23 +15,5 @@
 # limitations under the License.
 #
 
-set -e
+git add . && git commit -m "Test DB"  --amend && git push tim HEAD:databricks-tim  -f
 
-# Split abc=123 from $OVERWRITE_PARAMS
-# $OVERWRITE_PARAMS patten 'abc=123;def=456;'
-PRE_IFS=$IFS
-IFS=";"
-for VAR in $OVERWRITE_PARAMS;do
-    echo $VAR && export $VAR
-done
-IFS=$PRE_IFS
-
-CUDF_VER=${CUDF_VER:-"0.15"}
-CUDA_CLASSIFIER=${CUDA_CLASSIFIER:-"cuda10-1"}
-PROJECT_VER=${PROJECT_VER:-"0.2.0"}
-SPARK_VER=${SPARK_VER:-"3.0.0"}
-SCALA_BINARY_VER=${SCALA_BINARY_VER:-"2.12"}
-SERVER_ID=${SERVER_ID:-"snapshots"}
-
-echo "CUDF_VER: $CUDF_VER, CUDA_CLASSIFIER: $CUDA_CLASSIFIER, PROJECT_VER: $PROJECT_VER \
-    SPARK_VER: $SPARK_VER, SCALA_BINARY_VER: $SCALA_BINARY_VER"

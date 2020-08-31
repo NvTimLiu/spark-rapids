@@ -38,20 +38,20 @@ def get_master_addr(jsonout):
 def main():
   workspace = 'https://dbc-9ff9942e-a9c4.cloud.databricks.com'
   token = ''
-  clusterid = '0617-140138-umiak14'
+  clusterid = '0828-071715-knack867'
   private_key_file = "~/.ssh/id_rsa"
   skip_start = None
   local_script = 'build.sh'
   script_dest = '/home/ubuntu/build.sh'
   source_tgz = 'spark-rapids-ci.tgz'
-  tgz_dest = '/home/ubuntu/spark-rapids-ci.tgz'
-  ci_rapids_jar = 'rapids-4-spark_2.12-0.1-SNAPSHOT-ci.jar'
-  db_version = '0.1-databricks-SNAPSHOT'
+  tgz_dest = '/home/ubuntu/spark-rapids.tgz'
+  ci_rapids_jar = 'rapids-4-spark_2.12-0.2.0-tim.jar'
+  db_version = '0.2.0'
   scala_version = '2.12'
   spark_version = '3.0.0'
   cudf_version = '0.15'
   cuda_version = 'cuda10-1'
-  ci_cudf_jar = 'cudf-0.14-cuda10-1.jar'
+  ci_cudf_jar = 'cudf-0.15-cuda10-1.jar'
   base_spark_pom_version = '3.0.0'
 
   try:
@@ -119,6 +119,7 @@ def main():
   print('-m is ' + ci_cudf_jar)
   print('-v is ' + base_spark_pom_version)
 
+  skip_start = "yes"
   if skip_start is None:
       jsonout = cluster_state(workspace, clusterid, token)
       current_state = jsonout['state']

@@ -39,8 +39,9 @@ RAPIDS_BUILT_JAR=rapids-4-spark_$SCALA_VERSION-$DATABRICKS_VERSION.jar
 sudo apt install -y maven
 rm -rf spark-rapids
 mkdir spark-rapids
-tar -zxvf $SPARKTGZ -C spark-rapids
+tar -zxf $SPARKTGZ -C spark-rapids
 cd spark-rapids
+WORKSPACE=`pwd`
 mvn -B '-Pdatabricks,!snapshot-shims' clean package -DskipTests || true
 M2DIR=/home/ubuntu/.m2/repository
 CUDF_JAR=${M2DIR}/ai/rapids/cudf/${CUDF_VERSION}/cudf-${CUDF_VERSION}-${CUDA_VERSION}.jar
@@ -106,6 +107,10 @@ sudo ln -s /databricks/jars/ $SPARK_HOME/jars || true
 sudo chmod 777 /databricks/data/logs/
 sudo chmod 777 /databricks/data/logs/*
 echo { \"port\":\"15002\" } > ~/.databricks-connect
-$SPARK_HOME/bin/spark-submit ./runtests.py --runtime_env="databricks"
+#                                    $SPARK_HOME/bin/spark-submit ./runtests.py --runtime_env="databricks"
+#
+#
+#
+#
 cd /home/ubuntu
-tar -zcvf spark-rapids-built.tgz spark-rapids
+tar -zcf spark-rapids-built.tgz spark-rapids

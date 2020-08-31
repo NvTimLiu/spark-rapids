@@ -34,9 +34,10 @@ pipeline {
     }
 
     parameters {
-        string(name: 'DEPLOY_TO', defaultValue: 'https://oss.sonatype.org/service/local/staging/deploy/maven2',
+        string(name: 'DEPLOY_TO', defaultValue: 'http://apt-sh04:8081/repository/xgboost-spark-release',
             description: 'The repo URL where to deploy the artifacts')
-        string(name: 'REF', defaultValue: 'main', description: 'Commit to build')
+        string(name: 'REPO_ID', defaultValue: 'spark.sw.nvidia.com', description: 'Repo ID')
+        string(name: 'REF', defaultValue: 'databricks-tim', description: 'Commit to build')
     }
 
     environment {
@@ -50,14 +51,21 @@ pipeline {
     }
 
     stages {
+        stage ("Prepare databricks shims") {
+            steps {
+                build(job: 'tim-plugin-test/', propagate: true, parameters: [string(name: 'REF', value: "$REF")])
+            }
+        }
         stage('Build') {
             steps {
                 script {
                     sh "docker pull $IMAGE_NAME"
                     sh "mkdir -p ${HOME}/.zinc"
+                    echo "USER : ${USER}, HOME: $HOME"
                     docker.image("$IMAGE_NAME").inside("--runtime=nvidia -v ${HOME}/.m2:${HOME}/.m2:rw \
                         -v ${HOME}/.zinc:${HOME}/.zinc:rw") {
-                        sh "mvn -U -B clean install $MVN_MIRROR -P 'source-javadoc,!snapshot-shims'"
+                        echo "USER : ${USER}, HOME: $HOME"
+                        //sh "mvn -U -B -Dmaven.repo.local=${HOME}/.m2/repository clean install $MVN_MIRROR -P 'include-databricks,source-javadoc,!snapshot-shims' -DskipTests"
                     }
                 }
             }
@@ -65,7 +73,7 @@ pipeline {
 
         stage("Deploy") {
             environment {
-                SERVER_ID='ossrh'
+                SERVER_ID="${REPO_ID}"
                 SERVER_URL="${DEPLOY_TO}"
                 GPG_PASSPHRASE=credentials('SPARK_RAPIDS_GPG_PASSPHRASE')
                 GPG_FILE=credentials('SPARK_RAPIDS_GPG_PRIVATE_KEY')
@@ -74,10 +82,12 @@ pipeline {
             }
             steps {
                 script {
+                    echo "USER : ${USER}, HOME: $HOME"
                     docker.image("$IMAGE_NAME").inside("-v ${HOME}/.m2:${HOME}/.m2:rw") {
                         sh 'rm -rf $GNUPGHOME'
+                        echo "USER : ${USER}, HOME: $HOME"
                         sh 'gpg --import $GPG_FILE'
-                        retry (3) {
+                        retry (1) {
                             sh "bash $JENKINS_ROOT/deploy.sh true false"
                         }
                     }

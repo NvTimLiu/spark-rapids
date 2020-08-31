@@ -63,7 +63,7 @@ pipeline {
         SECRET_FILE = credentials("DB_SECRET_FILE")
         SCALA_VERSION = '2.12'
         SPARK_VERSION = '3.0.0-databricks'
-        CI_RAPIDS_JAR = 'rapids-4-spark_2.12-0.2-SNAPSHOT-ci.jar'
+        CI_RAPIDS_JAR = 'rapids-4-spark_2.12-0.2.0-ci.jar'
         CI_CUDF_JAR = 'cudf-0.15-cuda10-1.jar'
         URM_URL = "${urmUrl}"
     }
