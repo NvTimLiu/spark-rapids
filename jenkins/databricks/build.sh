@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-set -e
+set -ex
 
 SPARKTGZ=$1
 DATABRICKS_VERSION=$2
@@ -39,8 +39,9 @@ RAPIDS_BUILT_JAR=rapids-4-spark_$SCALA_VERSION-$DATABRICKS_VERSION.jar
 sudo apt install -y maven
 rm -rf spark-rapids
 mkdir spark-rapids
-tar -zxvf $SPARKTGZ -C spark-rapids
+tar -zxf $SPARKTGZ -C spark-rapids
 cd spark-rapids
+export WORKSPACE=`pwd`
 mvn -B '-Pdatabricks,!snapshot-shims' clean package -DskipTests || true
 M2DIR=/home/ubuntu/.m2/repository
 CUDF_JAR=${M2DIR}/ai/rapids/cudf/${CUDF_VERSION}/cudf-${CUDF_VERSION}-${CUDA_VERSION}.jar
@@ -92,9 +93,13 @@ mvn -B '-Pdatabricks,!snapshot-shims' clean package -DskipTests
 # Copy so we pick up new built jar and latesty CuDF jar. Note that the jar names has to be
 # exactly what is in the staticly setup Databricks cluster we use. 
 echo "Copying rapids jars: dist/target/$RAPIDS_BUILT_JAR $DB_RAPIDS_JAR_LOC"
+sudo cp $DB_RAPIDS_JAR_LOC /databricks
 sudo cp dist/target/$RAPIDS_BUILT_JAR $DB_RAPIDS_JAR_LOC
 echo "Copying cudf jars: $CUDF_JAR $DB_CUDF_JAR_LOC"
+sudo cp $DB_CUDF_JAR_LOC /databricks
 sudo cp $CUDF_JAR $DB_CUDF_JAR_LOC
+
+sudo ls /databricks
 
 # tests
 export PATH=/databricks/conda/envs/databricks-ml-gpu/bin:/databricks/conda/condabin:$PATH
@@ -118,6 +123,6 @@ if [ `ls $DB_JAR_LOC/cudf* | wc -l` -gt 1 ]; then
     ls $DB_JAR_LOC/cudf*
     exit 1
 fi
-$SPARK_HOME/bin/spark-submit ./runtests.py --runtime_env="databricks"
+$SPARK_HOME/bin/spark-submit ./runtests.py --runtime_env="databricks" -m "not cudf_udf"  || true
 cd /home/ubuntu
-tar -zcvf spark-rapids-built.tgz spark-rapids
+tar -zcf spark-rapids-built.tgz spark-rapids

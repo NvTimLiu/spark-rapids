@@ -36,7 +36,8 @@ pipeline {
     parameters {
         string(name: 'DEPLOY_TO', defaultValue: 'https://oss.sonatype.org/service/local/staging/deploy/maven2',
             description: 'The repo URL where to deploy the artifacts')
-        string(name: 'REF', defaultValue: 'main', description: 'Commit to build')
+        string(name: 'REPO_ID', defaultValue: 'ossrh', description: 'Repo ID')
+        string(name: 'REF', defaultValue: 'tim-test', description: 'Commit to build')
     }
 
     environment {
@@ -50,6 +51,11 @@ pipeline {
     }
 
     stages {
+        stage ("Prepare databricks shims") {
+            steps {
+                build(job: 'spark/rapids_databricks_release-github', propagate: true, parameters: [string(name: 'REF', value: "$REF")])
+            }
+        }
         stage('Build') {
             steps {
                 script {
@@ -57,7 +63,7 @@ pipeline {
                     sh "mkdir -p ${HOME}/.zinc"
                     docker.image("$IMAGE_NAME").inside("--runtime=nvidia -v ${HOME}/.m2:${HOME}/.m2:rw \
                         -v ${HOME}/.zinc:${HOME}/.zinc:rw") {
-                        sh "mvn -U -B clean install $MVN_MIRROR -P 'source-javadoc,!snapshot-shims'"
+                        sh "mvn -U -B clean install $MVN_MIRROR -P 'include-databricks,source-javadoc,!snapshot-shims'"
                     }
                 }
             }
@@ -65,7 +71,7 @@ pipeline {
 
         stage("Deploy") {
             environment {
-                SERVER_ID='ossrh'
+                SERVER_ID="${REPO_ID}"
                 SERVER_URL="${DEPLOY_TO}"
                 GPG_PASSPHRASE=credentials('SPARK_RAPIDS_GPG_PASSPHRASE')
                 GPG_FILE=credentials('SPARK_RAPIDS_GPG_PRIVATE_KEY')

@@ -46,7 +46,7 @@ def main():
   source_tgz = 'spark-rapids-ci.tgz'
   tgz_dest = '/home/ubuntu/spark-rapids-ci.tgz'
   ci_rapids_jar = 'rapids-4-spark_2.12-0.1-SNAPSHOT-ci.jar'
-  db_version = '0.1-databricks-SNAPSHOT'
+  db_version = '0.2.0'
   scala_version = '2.12'
   spark_version = '3.0.0'
   cudf_version = '0.15'
