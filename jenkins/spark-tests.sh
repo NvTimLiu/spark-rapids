@@ -29,8 +29,8 @@ rm -rf $ARTF_ROOT && mkdir -p $ARTF_ROOT
 # maven download SNAPSHOT jars: cudf, rapids-4-spark, spark3.0
 $MVN_GET_CMD \
     -DgroupId=ai.rapids -DartifactId=cudf -Dversion=$CUDF_VER -Dclassifier=$CUDA_CLASSIFIER
-$MVN_GET_CMD \
-    -DgroupId=com.nvidia -DartifactId=rapids-4-spark_$SCALA_BINARY_VER -Dversion=$PROJECT_VER
+#$MVN_GET_CMD \
+#    -DgroupId=com.nvidia -DartifactId=rapids-4-spark_$SCALA_BINARY_VER -Dversion=$PROJECT_VER
 $MVN_GET_CMD \
     -DgroupId=com.nvidia -DartifactId=rapids-4-spark-integration-tests_$SCALA_BINARY_VER -Dversion=$PROJECT_VER
 if [ "$CUDA_CLASSIFIER"x == x ];then
@@ -38,7 +38,8 @@ if [ "$CUDA_CLASSIFIER"x == x ];then
 else
     CUDF_JAR="$ARTF_ROOT/cudf-$CUDF_VER-$CUDA_CLASSIFIER.jar"
 fi
-RAPIDS_PLUGIN_JAR="$ARTF_ROOT/rapids-4-spark_${SCALA_BINARY_VER}-$PROJECT_VER.jar"
+#RAPIDS_PLUGIN_JAR="$ARTF_ROOT/rapids-4-spark_${SCALA_BINARY_VER}-$PROJECT_VER.jar"
+RAPIDS_PLUGIN_JAR="$WORKSPACE/rapids-mm.jar"
 RAPIDS_TEST_JAR="$ARTF_ROOT/rapids-4-spark-integration-tests_${SCALA_BINARY_VER}-$PROJECT_VER.jar"
 
 $MVN_GET_CMD \
@@ -47,6 +48,8 @@ $MVN_GET_CMD \
 RAPIDS_INT_TESTS_HOME="$ARTF_ROOT/integration_tests/"
 RAPDIS_INT_TESTS_TGZ="$ARTF_ROOT/rapids-4-spark-integration-tests_${SCALA_BINARY_VER}-$PROJECT_VER-pytest.tar.gz"
 tar xzf "$RAPDIS_INT_TESTS_TGZ" -C $ARTF_ROOT && rm -f "$RAPDIS_INT_TESTS_TGZ"
+
+cp -rf $WORKSPACE/integration_tests/src/main/python/* $RAPIDS_INT_TESTS_HOME/src/main/python/
 
 $MVN_GET_CMD \
     -DgroupId=org.apache -DartifactId=spark -Dversion=$SPARK_VER -Dclassifier=bin-hadoop3.2 -Dpackaging=tgz
@@ -83,5 +86,5 @@ jps
 
 echo "----------------------------START TEST------------------------------------"
 rm -rf $OUTPUT
-spark-submit $BASE_SPARK_SUBMIT_ARGS $MORTGAGE_SPARK_SUBMIT_ARGS $TEST_PARAMS
-cd $RAPIDS_INT_TESTS_HOME && spark-submit $BASE_SPARK_SUBMIT_ARGS --jars $RAPIDS_TEST_JAR ./runtests.py -v -rfExXs --std_input_path="$WORKSPACE/integration_tests/src/test/resources/"
+#spark-submit $BASE_SPARK_SUBMIT_ARGS $MORTGAGE_SPARK_SUBMIT_ARGS $TEST_PARAMS
+cd $RAPIDS_INT_TESTS_HOME && spark-submit $BASE_SPARK_SUBMIT_ARGS --jars $RAPIDS_TEST_JAR ./runtests.py $WORKSPACE/integration_tests/src/main/python/udf_test.py $WORKSPACE/integration_tests/src/main/python/udf_cudf_test.py -v -rfExXs --std_input_path="$WORKSPACE/integration_tests/src/test/resources/"
