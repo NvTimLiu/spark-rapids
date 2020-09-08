@@ -52,8 +52,9 @@ RUN conda --version
 RUN conda update -n base -c defaults conda
 
 ARG CUDA_TOOLKIT_VER=10.1
-RUN conda install -c rapidsai -c nvidia -c conda-forge \
-    -c defaults cudf=0.15 python=3.8 cudatoolkit=$CUDA_TOOLKIT_VER
+RUN conda install -c rapidsai-nightly -c nvidia -c conda-forge -c defaults cudf=0.15 cudatoolkit=${CUDA_TOOLKIT_VER}
+#RUN conda install -c rapidsai -c nvidia -c conda-forge \
+#    -c defaults cudf=0.15 python=3.8 cudatoolkit=$CUDA_TOOLKIT_VER
 
 RUN conda install spacy && \
     python -m spacy download en_core_web_sm
