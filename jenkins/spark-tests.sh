@@ -85,6 +85,8 @@ start-master.sh
 start-slave.sh spark://$HOSTNAME:7077
 jps
 
+conda list
+
 echo "----------------------------START TEST------------------------------------"
 rm -rf $OUTPUT
 #spark-submit $BASE_SPARK_SUBMIT_ARGS $MORTGAGE_SPARK_SUBMIT_ARGS $TEST_PARAMS
