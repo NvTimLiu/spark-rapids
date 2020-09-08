@@ -250,34 +250,34 @@ def test_window():
     _assert_cpu_gpu(cpu_run, gpu_run, gpu_conf=_conf, is_sort=True) 
 
 
-@allow_non_gpu(any=True)
-@udf
-def test_cogroup():
-    def cpu_run(spark):
-        df1 = spark.createDataFrame(
-                [(20000101, 1, 1.0), (20000101, 2, 2.0), (20000102, 1, 3.0), (20000102, 2, 4.0)],
-                ("time", "id", "v1"))
-        df2 = spark.createDataFrame(
-                [(20000101, 1, "x"), (20000101, 2, "y")],
-                ("time", "id", "v2"))
-        def _cpu_join_func(l, r):
-            return pd.merge(l, r, on="time")
-        return df1.groupby("id").cogroup(df2.groupby("id")).applyInPandas(_cpu_join_func, schema="time int, id_x int, id_y int, v1 double, v2 string").collect()
+# @allow_non_gpu(any=True)
+# @udf
+# def test_cogroup():
+#     def cpu_run(spark):
+#         df1 = spark.createDataFrame(
+#                 [(20000101, 1, 1.0), (20000101, 2, 2.0), (20000102, 1, 3.0), (20000102, 2, 4.0)],
+#                 ("time", "id", "v1"))
+#         df2 = spark.createDataFrame(
+#                 [(20000101, 1, "x"), (20000101, 2, "y")],
+#                 ("time", "id", "v2"))
+#         def _cpu_join_func(l, r):
+#             return pd.merge(l, r, on="time")
+#         return df1.groupby("id").cogroup(df2.groupby("id")).applyInPandas(_cpu_join_func, schema="time int, id_x int, id_y int, v1 double, v2 string").collect()
 
-    def gpu_run(spark):
-        df1 = spark.createDataFrame(
-                [(20000101, 1, 1.0), (20000101, 2, 2.0), (20000102, 1, 3.0), (20000102, 2, 4.0)],
-                ("time", "id", "v1"))
-        df2 = spark.createDataFrame(
-                [(20000101, 1, "x"), (20000101, 2, "y")],
-                ("time", "id", "v2"))
-        def _gpu_join_func(l, r):
-            import cudf
-            gl = cudf.from_pandas(l)
-            gr = cudf.from_pandas(r)
-            return gl.merge(gr, on="time").to_pandas()
-        return df1.groupby("id").cogroup(df2.groupby("id")).applyInPandas(_gpu_join_func, schema="time int, id_x int, id_y int, v1 double, v2 string").collect()
+#     def gpu_run(spark):
+#         df1 = spark.createDataFrame(
+#                 [(20000101, 1, 1.0), (20000101, 2, 2.0), (20000102, 1, 3.0), (20000102, 2, 4.0)],
+#                 ("time", "id", "v1"))
+#         df2 = spark.createDataFrame(
+#                 [(20000101, 1, "x"), (20000101, 2, "y")],
+#                 ("time", "id", "v2"))
+#         def _gpu_join_func(l, r):
+#             import cudf
+#             gl = cudf.from_pandas(l)
+#             gr = cudf.from_pandas(r)
+#             return gl.merge(gr, on="time").to_pandas()
+#         return df1.groupby("id").cogroup(df2.groupby("id")).applyInPandas(_gpu_join_func, schema="time int, id_x int, id_y int, v1 double, v2 string").collect()
 
-    _assert_cpu_gpu(cpu_run, gpu_run, gpu_conf=_conf, is_sort=True)
+#     _assert_cpu_gpu(cpu_run, gpu_run, gpu_conf=_conf, is_sort=True)
 
 
