@@ -53,14 +53,13 @@ RUN conda update -n base -c defaults conda
 
 ARG CUDA_TOOLKIT_VER=10.1
 RUN conda install -c rapidsai -c nvidia -c conda-forge \
-    -c defaults rapids=0.15 python=3.7 cudatoolkit=$CUDA_TOOLKIT_VER
+    -c defaults rapids=0.15 python=3.8 cudatoolkit=$CUDA_TOOLKIT_VER
 
 RUN conda install spacy && \
     python -m spacy download en_core_web_sm
 
-RUN conda install -c anaconda  pytest requests pandas pyarrow
+RUN conda install -c anaconda pytest requests pandas pyarrow
 RUN conda install -c conda-forge sre_yield
-RUN conda clean -a
 
 # Set ENV for mvn
 ENV JAVA_HOME "/usr/lib/jvm/java-1.8.0-openjdk"
