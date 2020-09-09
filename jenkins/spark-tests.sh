@@ -70,10 +70,8 @@ BASE_SPARK_SUBMIT_ARGS="--master spark://$HOSTNAME:7077 --executor-memory 32G \
     --conf spark.driver.extraJavaOptions=-Duser.timezone=GMT \
     --conf spark.executor.extraJavaOptions=-Duser.timezone=GMT \
     --conf spark.sql.session.timeZone=UTC \
-    --conf spark.rapids.python.memory.gpu.pooling.enabled=false \
-    --conf spark.rapids.python.concurrentPythonWorkers=1 \
-    --conf spark.executorEnv.PYTHONPATH=${RAPIDS_PLUGIN_JAR} \
-    --py-files ${RAPIDS_PLUGIN_JAR} "
+    --conf spark.rapids.python.memory.gpu.allocFraction=0.4 \
+    --conf spark.rapids.memory.gpu.allocFraction=0.4 "
 MORTGAGE_SPARK_SUBMIT_ARGS=" --conf spark.plugins=com.nvidia.spark.SQLPlugin \
     --class com.nvidia.spark.rapids.tests.mortgage.Main \
     $RAPIDS_TEST_JAR"
