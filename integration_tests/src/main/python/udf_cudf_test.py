@@ -19,7 +19,9 @@ from typing import Iterator
 from pyspark.sql import Window
 from pyspark.sql.functions import pandas_udf, PandasUDFType
 from spark_session import with_cpu_session, with_gpu_session
-from marks import udf, allow_non_gpu
+from marks import allow_non_gpu
+
+cudf = pytest.importorskip("cudf")
 
 _conf = {
         'spark.rapids.sql.exec.ArrowEvalPythonExec':'true',
@@ -70,7 +72,7 @@ def _plus_one_gpu_func(v: pd.Series) -> pd.Series:
     return gpu_serises.to_pandas()
 
 @allow_non_gpu(any=True)
-@udf
+@pytest.mark.skip("exception in docker: OSError: Invalid IPC stream: negative continuation token, skip for now")
 def test_with_column():
     def cpu_run(spark):
         df = _create_df(spark) 
@@ -83,7 +85,7 @@ def test_with_column():
     _assert_cpu_gpu(cpu_run, gpu_run, gpu_conf=_conf)
 
 @allow_non_gpu(any=True)
-@udf
+@pytest.mark.skip("exception in docker: OSError: Invalid IPC stream: negative continuation token, skip for now")
 def test_sql():
     def cpu_run(spark):
         _ = spark.udf.register("add_one_cpu", _plus_one_cpu_func)
@@ -109,7 +111,7 @@ def _plus_one_gpu_iter_func(iterator: Iterator[pd.Series]) -> Iterator[pd.Series
         yield gpu_serises.to_pandas()
         
 @allow_non_gpu(any=True)
-@udf
+@pytest.mark.skip("exception in docker: OSError: Invalid IPC stream: negative continuation token, skip for now")
 def test_select():
     def cpu_run(spark):
         df = _create_df(spark)
@@ -122,8 +124,7 @@ def test_select():
     _assert_cpu_gpu(cpu_run, gpu_run, gpu_conf=_conf)
 
 
-@allow_non_gpu(any=True)
-@udf
+@allow_non_gpu('GpuMapInPandasExec','PythonUDF')
 def test_map_in_pandas():
     def cpu_run(spark):
         df = _create_df(spark)
@@ -158,8 +159,7 @@ def _normalize_gpu_func(df):
     v = gdf.v
     return gdf.assign(v=(v - v.mean()) / v.std()).to_pandas()
 
-@allow_non_gpu(any=True)
-@udf
+@allow_non_gpu('GpuFlatMapGroupsInPandasExec','PythonUDF')
 def test_group_apply():
     def cpu_run(spark):
         df = _create_df(spark)
@@ -172,8 +172,7 @@ def test_group_apply():
     _assert_cpu_gpu(cpu_run, gpu_run, gpu_conf=_conf, is_sort=True)
 
 
-@allow_non_gpu(any=True)
-@udf
+@allow_non_gpu('GpuFlatMapGroupsInPandasExec','PythonUDF')
 def test_group_apply_in_pandas():
     def cpu_run(spark):
         df = _create_df(spark)
@@ -204,8 +203,7 @@ def _sum_gpu_func(v: pd.Series) -> int:
     gpu_serises = cudf.Series(v)
     return gpu_serises.sum()
 
-@allow_non_gpu(any=True)
-@udf
+@allow_non_gpu('GpuAggregateInPandasExec','PythonUDF','Alias')
 def test_group_agg():
     def cpu_run(spark):
         df = _create_df(spark)
@@ -218,8 +216,7 @@ def test_group_agg():
     _assert_cpu_gpu(cpu_run, gpu_run, gpu_conf=_conf, is_sort=True)
 
 
-@allow_non_gpu(any=True)
-@udf
+@allow_non_gpu('GpuAggregateInPandasExec','PythonUDF','Alias')
 def test_sql_group():
     def cpu_run(spark):
         _ = spark.udf.register("sum_cpu_udf", _sum_cpu_func)
@@ -233,9 +230,8 @@ def test_sql_group():
 
     _assert_cpu_gpu(cpu_run, gpu_run, gpu_conf=_conf, is_sort=True)
 
-
-@allow_non_gpu(any=True)
-@udf
+        
+@allow_non_gpu('GpuWindowInPandasExec','PythonUDF','Alias','WindowExpression','WindowSpecDefinition','SpecifiedWindowFrame','UnboundedPreceding$', 'UnboundedFollowing$')
 def test_window():
     def cpu_run(spark):
         df = _create_df(spark)
@@ -250,34 +246,33 @@ def test_window():
     _assert_cpu_gpu(cpu_run, gpu_run, gpu_conf=_conf, is_sort=True) 
 
 
-# @allow_non_gpu(any=True)
-# @udf
-# def test_cogroup():
-#     def cpu_run(spark):
-#         df1 = spark.createDataFrame(
-#                 [(20000101, 1, 1.0), (20000101, 2, 2.0), (20000102, 1, 3.0), (20000102, 2, 4.0)],
-#                 ("time", "id", "v1"))
-#         df2 = spark.createDataFrame(
-#                 [(20000101, 1, "x"), (20000101, 2, "y")],
-#                 ("time", "id", "v2"))
-#         def _cpu_join_func(l, r):
-#             return pd.merge(l, r, on="time")
-#         return df1.groupby("id").cogroup(df2.groupby("id")).applyInPandas(_cpu_join_func, schema="time int, id_x int, id_y int, v1 double, v2 string").collect()
+@allow_non_gpu('GpuFlatMapCoGroupsInPandasExec','PythonUDF')
+def test_cogroup():
+    def cpu_run(spark):
+        df1 = spark.createDataFrame(
+                [(20000101, 1, 1.0), (20000101, 2, 2.0), (20000102, 1, 3.0), (20000102, 2, 4.0)],
+                ("time", "id", "v1"))
+        df2 = spark.createDataFrame(
+                [(20000101, 1, "x"), (20000101, 2, "y")],
+                ("time", "id", "v2"))
+        def _cpu_join_func(l, r):
+            return pd.merge(l, r, on="time")
+        return df1.groupby("id").cogroup(df2.groupby("id")).applyInPandas(_cpu_join_func, schema="time int, id_x int, id_y int, v1 double, v2 string").collect()
 
-#     def gpu_run(spark):
-#         df1 = spark.createDataFrame(
-#                 [(20000101, 1, 1.0), (20000101, 2, 2.0), (20000102, 1, 3.0), (20000102, 2, 4.0)],
-#                 ("time", "id", "v1"))
-#         df2 = spark.createDataFrame(
-#                 [(20000101, 1, "x"), (20000101, 2, "y")],
-#                 ("time", "id", "v2"))
-#         def _gpu_join_func(l, r):
-#             import cudf
-#             gl = cudf.from_pandas(l)
-#             gr = cudf.from_pandas(r)
-#             return gl.merge(gr, on="time").to_pandas()
-#         return df1.groupby("id").cogroup(df2.groupby("id")).applyInPandas(_gpu_join_func, schema="time int, id_x int, id_y int, v1 double, v2 string").collect()
+    def gpu_run(spark):
+        df1 = spark.createDataFrame(
+                [(20000101, 1, 1.0), (20000101, 2, 2.0), (20000102, 1, 3.0), (20000102, 2, 4.0)],
+                ("time", "id", "v1"))
+        df2 = spark.createDataFrame(
+                [(20000101, 1, "x"), (20000101, 2, "y")],
+                ("time", "id", "v2"))
+        def _gpu_join_func(l, r):
+            import cudf
+            gl = cudf.from_pandas(l)
+            gr = cudf.from_pandas(r)
+            return gl.merge(gr, on="time").to_pandas()
+        return df1.groupby("id").cogroup(df2.groupby("id")).applyInPandas(_gpu_join_func, schema="time int, id_x int, id_y int, v1 double, v2 string").collect()
 
-#     _assert_cpu_gpu(cpu_run, gpu_run, gpu_conf=_conf, is_sort=True)
+    _assert_cpu_gpu(cpu_run, gpu_run, gpu_conf=_conf, is_sort=True)
 
 
