@@ -50,7 +50,7 @@ RAPIDS_INT_TESTS_HOME="$ARTF_ROOT/integration_tests/"
 RAPDIS_INT_TESTS_TGZ="$ARTF_ROOT/rapids-4-spark-integration-tests_${SCALA_BINARY_VER}-$PROJECT_VER-pytest.tar.gz"
 tar xzf "$RAPDIS_INT_TESTS_TGZ" -C $ARTF_ROOT && rm -f "$RAPDIS_INT_TESTS_TGZ"
 
-cp -rf $WORKSPACE/integration_tests/src/main/python/* $RAPIDS_INT_TESTS_HOME/src/main/python/
+cp -rf $WORKSPACE/integration_tests/* $RAPIDS_INT_TESTS_HOME/
 
 $MVN_GET_CMD \
     -DgroupId=org.apache -DartifactId=spark -Dversion=$SPARK_VER -Dclassifier=bin-hadoop3.2 -Dpackaging=tgz
