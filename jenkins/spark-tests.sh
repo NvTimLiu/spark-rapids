@@ -69,14 +69,17 @@ BASE_SPARK_SUBMIT_ARGS="--master spark://$HOSTNAME:7077 --executor-memory 32G \
     --conf spark.executor.extraClassPath=${CUDF_JAR}:${RAPIDS_PLUGIN_JAR} \
     --conf spark.driver.extraJavaOptions=-Duser.timezone=GMT \
     --conf spark.executor.extraJavaOptions=-Duser.timezone=GMT \
-    --conf spark.sql.session.timeZone=UTC \
-    --conf spark.rapids.python.memory.gpu.pooling.enabled=false \
-    --conf spark.rapids.memory.gpu.pooling.enabled=false \
-    --conf spark.executorEnv.PYTHONPATH=rapids-4-spark_2.12-0.2.0-SNAPSHOT.jar \
-    --py-files ${RAPIDS_PLUGIN_JAR} "
+    --conf spark.sql.session.timeZone=UTC"
 MORTGAGE_SPARK_SUBMIT_ARGS=" --conf spark.plugins=com.nvidia.spark.SQLPlugin \
     --class com.nvidia.spark.rapids.tests.mortgage.Main \
     $RAPIDS_TEST_JAR"
+
+UDF_CUDF_TEST_ARGS="--conf spark.rapids.python.memory.gpu.pooling.enabled=false \
+    --conf spark.rapids.sql.python.gpu.enabled=true \
+    --conf spark.executorEnv.PYTHONPATH=rapids-4-spark_2.12-0.2.0-SNAPSHOT.jar \
+    --conf spark.rapids.python.memory.gpu.allocFraction=0.1 \
+    --conf spark.rapids.memory.gpu.allocFraction=0.1 \
+    --py-files ${RAPIDS_PLUGIN_JAR}"
 
 TEST_PARAMS="$SPARK_VER $PARQUET_PERF $PARQUET_ACQ $OUTPUT"
 
@@ -94,4 +97,5 @@ conda list
 echo "----------------------------START TEST------------------------------------"
 rm -rf $OUTPUT
 #spark-submit $BASE_SPARK_SUBMIT_ARGS $MORTGAGE_SPARK_SUBMIT_ARGS $TEST_PARAMS
-cd $RAPIDS_INT_TESTS_HOME && spark-submit $BASE_SPARK_SUBMIT_ARGS --jars $RAPIDS_TEST_JAR ./runtests.py -v -rfExXs --std_input_path="$WORKSPACE/integration_tests/src/test/resources/"
+cd $RAPIDS_INT_TESTS_HOME && spark-submit $BASE_SPARK_SUBMIT_ARGS --jars $RAPIDS_TEST_JAR ./runtests.py -m "not udf_cudf" -v -rfExXs --std_input_path="$WORKSPACE/integration_tests/src/test/resources/"
+spark-submit $BASE_SPARK_SUBMIT_ARGS $UDF_CUDF_TEST_ARGS --jars $RAPIDS_TEST_JAR ./runtests.py -m "udf_cudf" -v -rfExXs
