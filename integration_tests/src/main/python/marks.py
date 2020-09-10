@@ -20,4 +20,4 @@ ignore_order = pytest.mark.ignore_order
 incompat = pytest.mark.incompat
 limit = pytest.mark.limit
 qarun = pytest.mark.qarun
-cudfudf = pytest.mark.cudfudf
+cudf_udf = pytest.mark.cudf_udf
