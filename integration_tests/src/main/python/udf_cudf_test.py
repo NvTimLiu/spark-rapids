@@ -30,7 +30,7 @@ _conf = {
         'spark.rapids.sql.exec.AggregateInPandasExec': 'true',
         'spark.rapids.sql.exec.FlatMapCoGroupsInPandasExec': 'true',
         'spark.rapids.sql.exec.WindowInPandasExec': 'true',
-        'spark.rapids.python.gpu.enabled': 'true'
+        'spark.rapids.sql.python.gpu.enabled': 'true'
         }
 
 def _create_df(spark):
