@@ -77,7 +77,7 @@ MORTGAGE_SPARK_SUBMIT_ARGS=" --conf spark.plugins=com.nvidia.spark.SQLPlugin \
     --class com.nvidia.spark.rapids.tests.mortgage.Main \
     $RAPIDS_TEST_JAR"
 
-UDF_CUDF_TEST_ARGS="--conf spark.rapids.memory.gpu.allocFraction=0.4 \
+UDF_CUDF_TEST_ARGS="--conf spark.rapids.memory.gpu.allocFraction=0.3 \
     --conf 'spark.rapids.python.concurrentPythonWorkers=3' \
     --conf 'spark.rapids.python.memory.gpu.allocFraction=0.4' \
     --conf spark.executorEnv.PYTHONPATH=rapids-4-spark_2.12-0.2.0-SNAPSHOT.jar \
