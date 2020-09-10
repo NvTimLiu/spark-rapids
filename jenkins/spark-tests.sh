@@ -96,6 +96,6 @@ conda list
 echo "----------------------------START TEST------------------------------------"
 rm -rf $OUTPUT
 #spark-submit $BASE_SPARK_SUBMIT_ARGS $MORTGAGE_SPARK_SUBMIT_ARGS $TEST_PARAMS
-#cd $RAPIDS_INT_TESTS_HOME && spark-submit $BASE_SPARK_SUBMIT_ARGS --jars $RAPIDS_TEST_JAR ./runtests.py -m "not udf_cudf" -v -rfExXs --std_input_path="$WORKSPACE/integration_tests/src/test/resources/"
-cd $RAPIDS_INT_TESTS_HOME && spark-submit $BASE_SPARK_SUBMIT_ARGS $UDF_CUDF_TEST_ARGS --jars $RAPIDS_TEST_JAR ./runtests.py --markers
+cd $RAPIDS_INT_TESTS_HOME && spark-submit $BASE_SPARK_SUBMIT_ARGS --jars $RAPIDS_TEST_JAR ./runtests.py -m "not cudf_udf" -v -rfExXs --std_input_path="$WORKSPACE/integration_tests/src/test/resources/"
+#cd $RAPIDS_INT_TESTS_HOME && spark-submit $BASE_SPARK_SUBMIT_ARGS $UDF_CUDF_TEST_ARGS --jars $RAPIDS_TEST_JAR ./runtests.py --markers
 spark-submit $BASE_SPARK_SUBMIT_ARGS $UDF_CUDF_TEST_ARGS --jars $RAPIDS_TEST_JAR ./runtests.py -m "cudf_udf" -v -rfExXs
