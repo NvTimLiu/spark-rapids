@@ -75,7 +75,8 @@ MORTGAGE_SPARK_SUBMIT_ARGS=" --conf spark.plugins=com.nvidia.spark.SQLPlugin \
     $RAPIDS_TEST_JAR"
 
 UDF_CUDF_TEST_ARGS="--conf spark.rapids.python.memory.gpu.pooling.enabled=false \
-    --conf spark.rapids.memory.gpu.pooling.enabled=false \
+    --conf spark.rapids.memory.gpu.pooling.enabled=true \
+    --conf spark.rapids.memory.gpu.allocFraction=0.4 \
     --conf spark.rapids.sql.python.gpu.enabled=true \
     --conf spark.executorEnv.PYTHONPATH=rapids-4-spark_2.12-0.2.0-SNAPSHOT.jar \
     --py-files ${RAPIDS_PLUGIN_JAR}"
