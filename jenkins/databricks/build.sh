@@ -123,6 +123,7 @@ if [ `ls $DB_JAR_LOC/cudf* | wc -l` -gt 1 ]; then
     ls $DB_JAR_LOC/cudf*
     exit 1
 fi
-$SPARK_HOME/bin/spark-submit ./runtests.py --runtime_env="databricks" -m "not cudf_udf"  || true
+
+$SPARK_HOME/bin/spark-submit ./runtests.py src/main/python/udf_test.py src/main/python/udf_cudf_test.py --runtime_env="databricks" 
 cd /home/ubuntu
 tar -zcf spark-rapids-built.tgz spark-rapids

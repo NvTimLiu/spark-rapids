@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+
 /**
 *
 * Jenkinsfile for building rapids-plugin on Databricks
@@ -89,7 +90,7 @@ pipeline {
     post {
         always {
             script {
-                //sh "python3.6 ./jenkins/databricks/shutdown.py -c $CLUSTER_ID -t $DATABRICKS_TOKEN || true"
+//                sh "python3.6 ./jenkins/databricks/shutdown.py -c $CLUSTER_ID -t $DATABRICKS_TOKEN || true"
                 if (currentBuild.currentResult == "SUCCESS") {
                     slack("#swrapids-spark-cicd", "Success", color: "#33CC33")
                 } else {

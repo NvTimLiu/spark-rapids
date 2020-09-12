@@ -16,4 +16,3 @@
 #
 
 git add . && git commit -m "Test DB"  --amend && git push tim HEAD:databricks-tim-test -f
-git push origin HEAD:databricks-tim-test -f
