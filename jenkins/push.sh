@@ -15,5 +15,5 @@
 # limitations under the License.
 #
 
-git add . && git commit -m "Test DB"  --amend && git push tim HEAD:tim-test -f
-git push origin HEAD:tim-test -f
+git add . && git commit -m "Test DB"  --amend && git push tim HEAD:databricks-tim-test -f
+git push origin HEAD:databricks-tim-test -f

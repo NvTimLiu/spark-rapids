@@ -37,7 +37,7 @@ pipeline {
         string(name: 'DEPLOY_TO', defaultValue: 'https://oss.sonatype.org/service/local/staging/deploy/maven2',
             description: 'The repo URL where to deploy the artifacts')
         string(name: 'REPO_ID', defaultValue: 'ossrh', description: 'Repo ID')
-        string(name: 'REF', defaultValue: 'tim-test', description: 'Commit to build')
+        string(name: 'REF', defaultValue: 'databricks-tim-test', description: 'Commit to build')
     }
 
     environment {

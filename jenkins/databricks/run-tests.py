@@ -38,7 +38,7 @@ def get_master_addr(jsonout):
 def main():
   workspace = 'https://dbc-9ff9942e-a9c4.cloud.databricks.com'
   token = ''
-  clusterid = '0617-140138-umiak14'
+  clusterid = '0828-071715-knack867'
   private_key_file = "~/.ssh/id_rsa"
   skip_start = None
   local_script = 'build.sh'
@@ -119,6 +119,7 @@ def main():
   print('-m is ' + ci_cudf_jar)
   print('-v is ' + base_spark_pom_version)
 
+  skip_start="started"
   if skip_start is None:
       jsonout = cluster_state(workspace, clusterid, token)
       current_state = jsonout['state']

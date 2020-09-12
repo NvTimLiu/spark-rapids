@@ -28,7 +28,7 @@ def cluster_state(workspace, clusterid, token):
 def main():
   workspace = 'https://dbc-9ff9942e-a9c4.cloud.databricks.com'
   token = ''
-  clusterid = '0617-140138-umiak14'
+  clusterid = '0828-071715-knack867'
 
   try:
       opts, args = getopt.getopt(sys.argv[1:], 'hs:t:c:',
