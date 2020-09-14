@@ -34,7 +34,7 @@ spec:
   containers:
   - name: "plugin-it"
     image: "IMAGE_NAME"
-    imagePullPolicy: "IfNotPresent"
+    imagePullPolicy: "Always"
     resources:
       limits:
         nvidia.com/gpu: 1
@@ -91,7 +91,7 @@ pipeline {
     parameters {
         string(name: 'OVERWRITE_PARAMS', defaultValue: '',
             description: 'parameters format XXX_VER=xxx;YYY_VER=yyy;')
-        string(name: 'REF', defaultValue: 'tim-cudf11', description: 'Commit to build')
+        string(name: 'REF', defaultValue: '0.2.0-release', description: 'Commit to build')
     }
 
     environment {

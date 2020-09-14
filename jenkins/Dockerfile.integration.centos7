@@ -62,3 +62,5 @@ RUN conda install -c conda-forge sre_yield
 
 # Set ENV for mvn
 ENV JAVA_HOME "/usr/lib/jvm/java-1.8.0-openjdk"
+
+RUN yum install -y which
