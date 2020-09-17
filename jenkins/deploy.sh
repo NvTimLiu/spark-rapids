@@ -79,3 +79,11 @@ $DEPLOY_CMD -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
 $DEPLOY_CMD -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
             $SRC_DOC_JARS \
             -Dfile=$FPATH.jar -DpomFile=${DIST_PL}/dependency-reduced-pom.xml
+
+###### Deploy integration tests jar(s) ######
+TESTS_PL=$WORKSPACE/integration_tests
+TESTS_ART_ID=`mvn help:evaluate -q -pl $TESTS_PL -Dexpression=project.artifactId -DforceStdout`
+TESTS_ART_VER=`mvn help:evaluate -q -pl $TESTS_PL -Dexpression=project.version -DforceStdout`
+TESTS_FPATH="$TESTS_PL/target/$TESTS_ART_ID-$TESTS_ART_VER"
+$DEPLOY_CMD -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
+            -Dfile=$TESTS_FPATH.jar -DpomFile=${TESTS_PL}/pom.xml
