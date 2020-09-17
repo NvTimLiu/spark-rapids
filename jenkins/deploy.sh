@@ -44,6 +44,7 @@ if [ "$DATABRICKS" == true ]; then
     cd spark-rapids
 fi
 
+
 ART_ID=`mvn help:evaluate -q -pl $DIST_PL -Dexpression=project.artifactId -DforceStdout`
 ART_VER=`mvn help:evaluate -q -pl $DIST_PL -Dexpression=project.version -DforceStdout`
 
@@ -70,18 +71,17 @@ echo "Deploy CMD: $DEPLOY_CMD"
 
 ###### Deploy the parent pom file ######
 
-$DEPLOY_CMD -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
-            -Dfile=./pom.xml -DpomFile=./pom.xml
+#$DEPLOY_CMD -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
+#            -Dfile=./pom.xml -DpomFile=./pom.xml
 
 ###### Deploy the artifact jar(s) ######
 
 # Distribution jar is a shaded artifact so use the reduced dependency pom.
-$DEPLOY_CMD -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
-            $SRC_DOC_JARS \
-            -Dfile=$FPATH.jar -DpomFile=${DIST_PL}/dependency-reduced-pom.xml
+#$DEPLOY_CMD -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
+#            $SRC_DOC_JARS \
+#            -Dfile=$FPATH.jar -DpomFile=${DIST_PL}/dependency-reduced-pom.xml
 
 ###### Deploy integration tests jar(s) ######
-TESTS_PL=$WORKSPACE/integration_tests
 TESTS_ART_ID=`mvn help:evaluate -q -pl $TESTS_PL -Dexpression=project.artifactId -DforceStdout`
 TESTS_ART_VER=`mvn help:evaluate -q -pl $TESTS_PL -Dexpression=project.version -DforceStdout`
 TESTS_FPATH="$TESTS_PL/target/$TESTS_ART_ID-$TESTS_ART_VER"

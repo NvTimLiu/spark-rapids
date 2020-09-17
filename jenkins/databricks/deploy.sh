@@ -24,6 +24,8 @@ cd spark-rapids
 echo "Maven mirror is $MVN_URM_MIRROR"
 SERVER_ID='snapshots'
 SERVER_URL="$URM_URL-local"
+SERVER_ID='spark.sw.nvidia.com'
+SERVER_URL="http://apt-sh04:8081/repository/xgboost-spark-release"
 DBJARFPATH=./shims/spark300db/target/rapids-4-spark-shims-spark300-databricks_$SCALA_VERSION-$DATABRICKS_VERSION.jar
 mvn -B deploy:deploy-file $MVN_URM_MIRROR '-P!snapshot-shims' -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
     -Dfile=$DBJARFPATH -DpomFile=shims/spark300db/pom.xml
