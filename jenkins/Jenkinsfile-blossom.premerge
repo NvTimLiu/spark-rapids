@@ -85,8 +85,8 @@ spec:
     tty: true
   nodeSelector:
     kubernetes.io/os: linux
-    nvidia.com/gpu_type: GPU_TYPE
 """
+//    nvidia.com/gpu_type: GPU_TYPE
 
 def githubHelper // blossom github helper
 def IMAGE_PREMERGE // temp image for premerge test
@@ -104,7 +104,7 @@ pipeline {
     options {
         ansiColor('xterm')
         buildDiscarder(logRotator(numToKeepStr: '50'))
-        skipDefaultCheckout true
+//        skipDefaultCheckout true
         timeout(time: 180, unit: 'MINUTES')
     }
 
@@ -123,6 +123,7 @@ pipeline {
     }
 
     stages {
+/*
         stage("Init githubHelper") {
             steps {
                 script {
@@ -130,7 +131,6 @@ pipeline {
                     githubHelper.updateCommitStatus("$BUILD_URL", "Running", GitHubCommitState.PENDING)
 
                     def title = githubHelper.getIssue().title
-                    if (title ==~ /.*\[skip ci\].*/) {
                         githubHelper.updateCommitStatus("$BUILD_URL", "Skipped", GitHubCommitState.SUCCESS)
                         currentBuild.result == "SUCCESS"
                         skipped = true
@@ -171,7 +171,6 @@ pipeline {
                                     userRemoteConfigs: [[
                                         credentialsId: 'github-token',
                                         url: githubHelper.getCloneUrl(),
-                                        refspec: '+refs/pull/*/head:refs/remotes/origin/pr/*']]
                             ]
                     )
 
@@ -196,10 +195,11 @@ pipeline {
                 }
             }
         } // end of Build docker image
-
+*/
         // TODO: support parallel testing for different spark versions
 stage ("Parallel Tests") {
     parallel {
+/*
         stage('Premerge Test') {
             when {
                 beforeAgent true
@@ -223,15 +223,21 @@ stage ("Parallel Tests") {
                     container('plugin-premerge') {
                         sh "$PREMERGE_SCRIPT"
                         step([$class                : 'JacocoPublisher',
-                              execPattern           : '**/target/jacoco.exec',
                               classPattern          : 'target/jacoco_classes/',
                               sourcePattern         : 'shuffle-plugin/src/main/scala/,udf-compiler/src/main/scala/,sql-plugin/src/main/java/,sql-plugin/src/main/scala/,shims/spark310/src/main/scala/,shims/spark300/src/main/scala/,shims/spark300db/src/main/scala/,shims/spark301/src/main/scala/,shims/spark302/src/main/scala/',
-                              sourceInclusionPattern: '**/*.java,**/*.scala'
                         ])
                     }
                 }
             }
         } // end of Premerge Test
+*/
+        stage('prepare image') {
+            steps {
+                script {
+                    pluginPremerge = pluginPremerge.replace("IMAGE_PREMERGE", "urm.nvidia.com/sw-spark-docker/plugin:dev-ubuntu16-cuda10.1")
+                }
+             }
+         }
 
         // TODO: support parallel testing for different spark versions
         stage('Databricks Test') {
@@ -313,12 +319,14 @@ stage ("Parallel Tests") {
                     return
                 }
 
+/*
                 deleteDockerTempTag(PREMERGE_TAG) // clean premerge temp image
                 if (currentBuild.currentResult == "SUCCESS") {
                     githubHelper.updateCommitStatus("$BUILD_URL", "Success", GitHubCommitState.SUCCESS)
                 } else {
                     githubHelper.updateCommitStatus("$BUILD_URL", "Fail", GitHubCommitState.FAILURE)
                 }
+*/
             }
         }
     }
