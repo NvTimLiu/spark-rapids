@@ -196,6 +196,16 @@ pipeline {
             }
         } // end of Build docker image
 */
+
+
+        stage('prepare image') {
+            steps {
+                script {
+                    pluginPremerge = pluginPremerge.replace("IMAGE_PREMERGE", "urm.nvidia.com/sw-spark-docker/plugin:dev-ubuntu16-cuda10.1")
+                }
+             }
+         }
+
         // TODO: support parallel testing for different spark versions
 stage ("Parallel Tests") {
     parallel {
@@ -231,13 +241,6 @@ stage ("Parallel Tests") {
             }
         } // end of Premerge Test
 */
-        stage('prepare image') {
-            steps {
-                script {
-                    pluginPremerge = pluginPremerge.replace("IMAGE_PREMERGE", "urm.nvidia.com/sw-spark-docker/plugin:dev-ubuntu16-cuda10.1")
-                }
-             }
-         }
 
         // TODO: support parallel testing for different spark versions
         stage('Databricks Test') {
