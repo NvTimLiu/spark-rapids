@@ -27,10 +27,8 @@ def urmUrl="https://${ArtifactoryConstants.ARTIFACTORY_NAME}/artifactory/sw-spar
 pipeline {
     agent {
         docker {
-            label 'docker-gpu'
+            label 'docker'
             image "${ArtifactoryConstants.ARTIFACTORY_NAME}/sw-spark-docker/plugin:dev-ubuntu16-cuda10.1"
-            args '--runtime=nvidia -v ${HOME}/.m2:${HOME}/.m2:rw \
-                -v ${HOME}/.zinc:${HOME}/.zinc:rw'
         }
     }
 
@@ -112,5 +110,5 @@ void slack(Map params = [:], String channel, String message) {
     params["channel"] = channel
     params["message"] = "${BUILD_URL}\n" + message
 
-    slackSend(defaultParams << params)
+//    slackSend(defaultParams << params)
 }
