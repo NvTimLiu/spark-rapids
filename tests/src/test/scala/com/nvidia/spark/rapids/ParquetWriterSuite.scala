@@ -76,13 +76,12 @@ class ParquetWriterSuite extends SparkQueryCompareTestSuite {
     }
   }
 
-  testExpectedExceptionStartsWith(
-      "int96 timestamps not supported",
-      classOf[IllegalArgumentException],
-      "Part of the plan is not columnar",
-      frameFromParquet("timestamp-date-test-msec.parquet"),
-      new SparkConf().set("spark.sql.parquet.outputTimestampType", "INT96")) {
-    val tempFile = File.createTempFile("int96", "parquet")
+  testExpectedGpuException(
+    "Old dates in EXCEPTION mode",
+    classOf[SparkException],
+    oldDatesDf,
+    new SparkConf().set("spark.sql.legacy.parquet.datetimeRebaseModeInWrite", "EXCEPTION")) {
+    val tempFile = File.createTempFile("oldDates", "parquet")
     tempFile.delete()
     frame => {
       frame.write.mode("overwrite").parquet(tempFile.getAbsolutePath)
@@ -91,11 +90,13 @@ class ParquetWriterSuite extends SparkQueryCompareTestSuite {
   }
 
   testExpectedGpuException(
-    "Old dates in EXCEPTION mode",
+    "Old timestamps millis in EXCEPTION mode",
     classOf[SparkException],
-    oldDatesDf,
-    new SparkConf().set("spark.sql.legacy.parquet.datetimeRebaseModeInWrite", "EXCEPTION")) {
-    val tempFile = File.createTempFile("oldDates", "parquet")
+    oldTsDf,
+    new SparkConf()
+      .set("spark.sql.legacy.parquet.datetimeRebaseModeInWrite", "EXCEPTION")
+      .set("spark.sql.parquet.outputTimestampType", "TIMESTAMP_MILLIS")) {
+    val tempFile = File.createTempFile("oldTimeStamp", "parquet")
     tempFile.delete()
     frame => {
       frame.write.mode("overwrite").parquet(tempFile.getAbsolutePath)

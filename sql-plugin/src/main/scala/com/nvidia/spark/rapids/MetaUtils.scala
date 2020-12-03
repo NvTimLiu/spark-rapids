@@ -26,10 +26,17 @@ import com.google.flatbuffers.FlatBufferBuilder
 import com.nvidia.spark.rapids.format._
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.ShuffleBlockBatchId
 
 object MetaUtils extends Arm {
+  // Used in cases where the `tableId` is not known at meta creation. 
+  // We pick a non-zero integer since FlatBuffers prevent mutating the 
+  // field if originally set to the default value as specified in the 
+  // FlatBuffer (0 by default).
+  val TableIdDefaultValue: Int = -1
+
   /**
    * Build a TableMeta message from a Table in contiguous memory
    *
@@ -79,7 +86,7 @@ object MetaUtils extends Arm {
    * @return heap-based flatbuffer message
    */
   def buildTableMeta(
-      tableId: Int,
+      tableId: Option[Int],
       table: Table,
       uncompressedBuffer: DeviceMemoryBuffer,
       codecId: Byte,
@@ -95,7 +102,7 @@ object MetaUtils extends Arm {
     val codecDescrArrayOffset =
       BufferMeta.createCodecBufferDescrsVector(fbb, Array(codecDescrOffset))
     BufferMeta.startBufferMeta(fbb)
-    BufferMeta.addId(fbb, tableId)
+    BufferMeta.addId(fbb, tableId.getOrElse(MetaUtils.TableIdDefaultValue))
     BufferMeta.addSize(fbb, compressedSize)
     BufferMeta.addUncompressedSize(fbb, uncompressedBuffer.getLength)
     BufferMeta.addCodecBufferDescrs(fbb, codecDescrArrayOffset)
@@ -154,7 +161,9 @@ object MetaUtils extends Arm {
         ColumnMeta.startColumnMeta(fbb)
         ColumnMeta.addNullCount(fbb, 0)
         ColumnMeta.addRowCount(fbb, batch.numRows)
-        ColumnMeta.addDtype(fbb, columns(i).getType.getNativeId)
+        val columnType = columns(i).getType
+        ColumnMeta.addDtypeId(fbb, columnType.getTypeId.getNativeId)
+        ColumnMeta.addDtypeScale(fbb, columnType.getScale)
         columnMetaOffsets.append(ColumnMeta.endColumnMeta(fbb))
       }
       Some(TableMeta.createColumnMetasVector(fbb, columnMetaOffsets.toArray))
@@ -190,7 +199,9 @@ object MetaUtils extends Arm {
     if (offsets != null) {
       ColumnMeta.addOffsets(fbb, addSubBuffer(fbb, baseAddress, offsets))
     }
-    ColumnMeta.addDtype(fbb, column.getType.getNativeId)
+    val columnType = column.getType
+    ColumnMeta.addDtypeId(fbb, columnType.getTypeId.getNativeId)
+    ColumnMeta.addDtypeScale(fbb, columnType.getScale)
     ColumnMeta.endColumnMeta(fbb)
   }
 
@@ -203,28 +214,49 @@ object MetaUtils extends Arm {
   }
 
   /**
+   * Construct a table from a contiguous device buffer and a
+   * `TableMeta` message describing the schema of the buffer data.
+   * @param deviceBuffer contiguous buffer
+   * @param meta schema metadata
+   * @return table that must be closed by the caller
+   */
+  def getTableFromMeta(deviceBuffer: DeviceMemoryBuffer, meta: TableMeta): Table = {
+    withResource(new Array[ColumnVector](meta.columnMetasLength())) { columns =>
+      val columnMeta = new ColumnMeta
+      (0 until meta.columnMetasLength).foreach { i =>
+        columns(i) = makeCudfColumn(deviceBuffer, meta.columnMetas(columnMeta, i))
+      }
+      new Table(columns :_*)
+    }
+  }
+
+  /**
    * Construct a columnar batch from a contiguous device buffer and a
    * `TableMeta` message describing the schema of the buffer data.
    * @param deviceBuffer contiguous buffer
    * @param meta schema metadata
+   * @param sparkTypes the spark types that the `ColumnarBatch` should have.
    * @return columnar batch that must be closed by the caller
    */
-  def getBatchFromMeta(deviceBuffer: DeviceMemoryBuffer, meta: TableMeta): ColumnarBatch = {
+  def getBatchFromMeta(deviceBuffer: DeviceMemoryBuffer,
+      meta: TableMeta,
+      sparkTypes: Array[DataType]): ColumnarBatch = {
     closeOnExcept(new ArrayBuffer[GpuColumnVector](meta.columnMetasLength())) { columns =>
       val columnMeta = new ColumnMeta
       (0 until meta.columnMetasLength).foreach { i =>
-        columns.append(makeColumn(deviceBuffer, meta.columnMetas(columnMeta, i)))
+        columns.append(makeColumn(deviceBuffer, meta.columnMetas(columnMeta, i), sparkTypes(i)))
       }
       new ColumnarBatch(columns.toArray, meta.rowCount.toInt)
     }
   }
 
-  private def makeColumn(buffer: DeviceMemoryBuffer, meta: ColumnMeta): GpuColumnVector = {
+  private def makeCudfColumn(buffer: DeviceMemoryBuffer,
+      meta: ColumnMeta): ColumnVector = {
     def getSubBuffer(s: SubBufferMeta): DeviceMemoryBuffer =
       if (s != null) buffer.slice(s.offset, s.length) else null
 
     assert(meta.childrenLength() == 0, "child columns are not yet supported")
-    val dtype = DType.fromNative(meta.dtype)
+    val dtype = DType.fromNative(meta.dtypeId(), meta.dtypeScale())
     val nullCount = if (meta.nullCount >= 0) {
       Optional.of(java.lang.Long.valueOf(meta.nullCount))
     } else {
@@ -233,9 +265,13 @@ object MetaUtils extends Arm {
     val dataBuffer = getSubBuffer(meta.data)
     val validBuffer = getSubBuffer(meta.validity)
     val offsetsBuffer = getSubBuffer(meta.offsets)
-    GpuColumnVector.from(new ColumnVector(dtype, meta.rowCount, nullCount,
-      dataBuffer, validBuffer, offsetsBuffer))
+    new ColumnVector(dtype, meta.rowCount, nullCount, dataBuffer, validBuffer, offsetsBuffer)
   }
+
+  private def makeColumn(buffer: DeviceMemoryBuffer,
+      meta: ColumnMeta,
+      sparkType: DataType): GpuColumnVector =
+    GpuColumnVector.from(makeCudfColumn(buffer, meta), sparkType)
 }
 
 class DirectByteBufferFactory extends FlatBufferBuilder.ByteBufferFactory {
@@ -312,7 +348,8 @@ object ShuffleMetadata extends Logging{
               offsets.length())
           ColumnMeta.addOffsets(fbb, offsetsOffset)
         }
-        ColumnMeta.addDtype(fbb, col.dtype())
+        ColumnMeta.addDtypeId(fbb, col.dtypeId())
+        ColumnMeta.addDtypeScale(fbb, col.dtypeScale())
         ColumnMeta.endColumnMeta(fbb)
       }
 
@@ -441,17 +478,18 @@ object ShuffleMetadata extends Logging{
         }
 
         // TODO: Need to expose native ID in cudf
-        if (DType.STRING == DType.fromNative(columnMeta.dtype())) {
+        val columnType = DType.fromNative(columnMeta.dtypeId(), columnMeta.dtypeScale())
+        if (DType.STRING == columnType) {
           val offsetLenStr = columnMeta.offsets().length().toString
           out.append(s"column: $i [rows=${columnMeta.rowCount}, " +
               s"data_len=${columnMeta.data().length()}, offset_len=${offsetLenStr}, " +
-              s"validity_len=$validityLen, type=${DType.fromNative(columnMeta.dtype())}, " +
+              s"validity_len=$validityLen, type=$columnType, " +
               s"null_count=${columnMeta.nullCount()}]\n")
         } else {
           val offsetLenStr = "NC"
           out.append(s"column: $i [rows=${columnMeta.rowCount}, " +
               s"data_len=${columnMeta.data().length()}, offset_len=${offsetLenStr}, " +
-              s"validity_len=$validityLen, type=${DType.fromNative(columnMeta.dtype())}, " +
+              s"validity_len=$validityLen, type=$columnType, " +
               s"null_count=${columnMeta.nullCount()}]\n")
         }
       }

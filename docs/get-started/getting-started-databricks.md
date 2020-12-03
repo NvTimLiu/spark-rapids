@@ -9,15 +9,15 @@ parent: Getting-Started
 This guide will run through how to set up the RAPIDS Accelerator for Apache Spark 3.0 on Databricks.  At the end of this guide, the reader will be able to run a sample Apache Spark application that runs on NVIDIA GPUs on Databricks.
 
 ## Prerequisites
-    * Apache Spark 3.0 running in DataBricks Runtime 7.0 ML with GPU 
-    * AWS: 7.0 ML (includes Apache Spark 3.0.0, GPU, Scala 2.12)
-    * Azure: 7.0 ML (GPU, Scala 2.12, Spark 3.0.0)
+    * Apache Spark 3.0 running in DataBricks Runtime 7.3 ML with GPU
+    * AWS:7.3 LTS ML (includes Apache Spark 3.0.1, GPU, Scala 2.12)
+    * Azure: 7.3 LTS ML (GPU, Scala 2.12, Spark 3.0.1)
 
 The number of GPUs per node dictates the number of Spark executors that can run in that node.
 
 ## Start a Databricks Cluster
 Create a Databricks cluster by going to Clusters, then clicking “+ Create Cluster”. Ensure the cluster meets the prerequisites above by configuring it as follows:
-1. On AWS, make sure to use 7.0 ML (GPU, Scala 2.12, Spark 3.0.0), or for Azure, choose 7.0 ML (GPU, Scala 2.12, Spark 3.0.0).
+1. Select the DataBricks Runtime Version from one of the supported runtimes specified in the Prerequisites section.
 2. Under Autopilot Options, disable auto scaling.
 3. Choose the number of workers that matches the number of GPUs you want to use.
 4. Select a worker type.  On AWS, use nodes with 1 GPU each such as `p3.xlarge` or `g4dn.xlarge`.  p2 nodes do not meet the architecture requirements for the Spark worker (although they can be used for the driver node).  For Azure, choose GPU nodes such as Standard_NC6s_v3. 
@@ -36,20 +36,16 @@ We will need to create an initialization script for the cluster that installs th
 
     ![Init Script](../img/initscript.png)
 
-6. Now select the “Spark” tab, and paste the following config options into the Spark Config section.  Change the config values based on the workers you choose.  See Apache Spark [configuration](https://spark.apache.org/docs/latest/configuration.html) and RAPIDS Accelerator for Apache Spark [descriptions](../configs) for each config. 
+6. Now select the “Spark” tab, and paste the following config options into the Spark Config section.  Change the config values based on the workers you choose.  See Apache Spark [configuration](https://spark.apache.org/docs/latest/configuration.html) and RAPIDS Accelerator for Apache Spark [descriptions](../configs.md) for each config. 
 
     The [`spark.task.resource.gpu.amount`](https://spark.apache.org/docs/latest/configuration.html#scheduling) configuration is defaulted to 1 by Databricks. That means that only 1 task can run on an executor with 1 GPU, which is limiting, especially on the reads and writes from Parquet.  Set this to 1/(number of cores per executor) which will allow multiple tasks to run in parallel just like the CPU side.  Having the value smaller is fine as well. 
 
     ```bash
     spark.plugins com.nvidia.spark.SQLPlugin
-    spark.sql.parquet.filterPushdown false
-    spark.rapids.sql.incompatibleOps.enabled true
     spark.rapids.memory.pinnedPool.size 2G
     spark.task.resource.gpu.amount 0.1
     spark.rapids.sql.concurrentGpuTasks 2
     spark.locality.wait 0s
-    spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version 2
-    spark.executor.extraJavaOptions "-Dai.rapids.cudf.prefer-pinned=true"
     ```
 
     ![Spark Config](../img/sparkconfig.png)

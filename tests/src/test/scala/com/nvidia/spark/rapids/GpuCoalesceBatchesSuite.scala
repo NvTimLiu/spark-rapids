@@ -19,12 +19,12 @@ package com.nvidia.spark.rapids
 import java.io.File
 import java.nio.file.Files
 
-import ai.rapids.cudf.{ContiguousTable, HostColumnVector, Table}
+import ai.rapids.cudf.{ContiguousTable, Cuda, HostColumnVector, Table}
 import com.nvidia.spark.rapids.format.CodecType
 
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.rapids.metrics.source.MockTaskContext
-import org.apache.spark.sql.types.{DataTypes, LongType, StructField, StructType}
+import org.apache.spark.sql.types.{DataType, DataTypes, LongType, StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class GpuCoalesceBatchesSuite extends SparkQueryCompareTestSuite {
@@ -59,6 +59,11 @@ class GpuCoalesceBatchesSuite extends SparkQueryCompareTestSuite {
   }
 
   test("limit batches by string size") {
+    // TODO figure out a better way to deal with the Rmm Event handler
+    // because we cannot do this multiple times without issues.
+
+    // If this test is run on it's own this is needed.
+    // RapidsBufferCatalog.init(new RapidsConf(new HashMap[String, String]()))
 
     val schema = new StructType(Array(
       StructField("a", DataTypes.DoubleType),
@@ -97,7 +102,8 @@ class GpuCoalesceBatchesSuite extends SparkQueryCompareTestSuite {
       override def getColumnDataSize(cb: ColumnarBatch, index: Int, default: Long): Long =
         index match {
           case 0 => 64L
-          case 1 => (Int.MaxValue / 4 * 3).toLong
+          case 1 => ((Int.MaxValue / 4) * 3).toLong
+          case _ => default
         }
     }
 
@@ -126,7 +132,7 @@ class GpuCoalesceBatchesSuite extends SparkQueryCompareTestSuite {
     val conf = makeBatchedBytes(1)
       .set(RapidsConf.MAX_READER_BATCH_SIZE_ROWS.key, "1")
       .set(RapidsConf.MAX_READER_BATCH_SIZE_BYTES.key, "1")
-      .set(RapidsConf.GPU_BATCH_SIZE_BYTES.key, "50000")
+      .set(RapidsConf.GPU_BATCH_SIZE_BYTES.key, "1")
       .set("spark.sql.shuffle.partitions", "1")
 
     withGpuSparkSession(spark => {
@@ -395,15 +401,17 @@ class GpuCoalesceBatchesSuite extends SparkQueryCompareTestSuite {
 
   private def buildUncompressedBatch(start: Int, numRows: Int): ColumnarBatch = {
     withResource(buildContiguousTable(start, numRows)) { ct =>
-      GpuColumnVector.from(ct.getTable)
+      GpuColumnVector.from(ct.getTable, Array[DataType](LongType))
     }
   }
 
   private def buildCompressedBatch(start: Int, numRows: Int): ColumnarBatch = {
-    val codec = TableCompressionCodec.getCodec(CodecType.COPY)
-    withResource(codec.createBatchCompressor(0)) { compressor =>
+    val codec = TableCompressionCodec.getCodec(CodecType.NVCOMP_LZ4)
+    withResource(codec.createBatchCompressor(0, Cuda.DEFAULT_STREAM)) { compressor =>
       compressor.addTableToCompress(buildContiguousTable(start, numRows))
-      GpuCompressedColumnVector.from(compressor.finish().head)
+      withResource(compressor.finish()) { compressedResults =>
+        GpuCompressedColumnVector.from(compressedResults.head, Array[DataType](LongType))
+      }
     }
   }
 }

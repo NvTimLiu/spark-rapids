@@ -102,9 +102,14 @@ abstract class RapidsMeta[INPUT <: BASE, BASE, OUTPUT <: BASE](
   /**
    * Check if all the types are supported in this Meta
    */
-  def areAllSupportedTypes(types: DataType*): Boolean = {
-    GpuOverrides.areAllSupportedTypes(types: _*)
-  }
+  final def areAllSupportedTypes(types: DataType*): Boolean =
+    types.forall(isSupportedType)
+
+  /**
+   * Check if this type is supported or not.
+   */
+  def isSupportedType(t: DataType): Boolean =
+    GpuOverrides.isSupportedType(t)
 
   /**
    * Keep this on the CPU, but possibly convert its children under it to run on the GPU if enabled.
@@ -674,19 +679,32 @@ abstract class BaseExprMeta[INPUT <: Expression](
   override def canExprTreeBeReplaced: Boolean =
     canThisBeReplaced && super.canExprTreeBeReplaced
 
+  def dataType: DataType = expr.dataType
+
   final override def tagSelfForGpu(): Unit = {
     try {
       if (!areAllSupportedTypes(expr.dataType)) {
-        willNotWorkOnGpu(s"expression ${expr.getClass.getSimpleName} ${expr} " +
+        willNotWorkOnGpu(s"expression ${expr.getClass.getSimpleName} $expr " +
           s"produces an unsupported type ${expr.dataType}")
       }
-    }
-    catch {
+    } catch {
       case _ : java.lang.UnsupportedOperationException =>
         if (!ignoreUnsetDataTypes) {
-          willNotWorkOnGpu(s"expression ${expr.getClass.getSimpleName} ${expr} " +
+          willNotWorkOnGpu(s"expression ${expr.getClass.getSimpleName} $expr " +
             s" does not have a corresponding dataType.")
         }
+    }
+    val inputDataTypes = childExprs.map { expr =>
+      try {
+        expr.dataType
+      } catch {
+        case _ : java.lang.UnsupportedOperationException => null
+      }
+    }.filter(_ != null).toArray
+    if (!areAllSupportedTypes(inputDataTypes :_*)) {
+      val unsupported = inputDataTypes
+          .filter(!areAllSupportedTypes(_)).toSet
+      willNotWorkOnGpu(s"unsupported data types in input: ${unsupported.mkString(", ")}")
     }
     tagExprForGpu()
   }
