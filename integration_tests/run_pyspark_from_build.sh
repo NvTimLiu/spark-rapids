@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 set -ex
-
-SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-cd "$SCRIPTPATH"
+export SCRIPTPATH=/home/ubuntu/spark-rapids/integration_tests && cd $SCRIPTPATH
+## SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+## cd "$SCRIPTPATH"
 
 if [[ $( echo ${SKIP_TESTS} | tr [:upper:] [:lower:] ) == "true" ]];
 then

@@ -96,7 +96,7 @@ def main():
   print("Copying built tarball back")
   rsync_command = "rsync  -I -Pave \"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2200 -i %s\" ubuntu@%s:/home/ubuntu/spark-rapids-built.tgz ./" % (private_key_file, master_addr)
   print("rsync command to get built tarball: %s" % rsync_command)
-  subprocess.check_call(rsync_command, shell = True)
+  ## subprocess.check_call(rsync_command, shell = True)
 
 if __name__ == '__main__':
   main()

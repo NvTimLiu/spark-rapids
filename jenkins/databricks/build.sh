@@ -33,8 +33,8 @@ DB_JAR_LOC=/databricks/jars/
 
 rm -rf spark-rapids
 mkdir spark-rapids
-echo  "tar -zxvf $SPARKSRCTGZ -C spark-rapids"
-tar -zxvf $SPARKSRCTGZ -C spark-rapids
+echo  "tar -zxf $SPARKSRCTGZ -C spark-rapids"
+tar -zxf $SPARKSRCTGZ -C spark-rapids
 cd spark-rapids
 export WORKSPACE=`pwd`
 
@@ -107,7 +107,7 @@ sudo cp $CUDF_JAR $DB_JAR_LOC
 
 # tests
 export PATH=/databricks/conda/envs/databricks-ml-gpu/bin:/databricks/conda/condabin:$PATH
-sudo /databricks/conda/envs/databricks-ml-gpu/bin/pip install pytest sre_yield
+sudo /databricks/conda/envs/databricks-ml-gpu/bin/pip install pytest sre_yield  requests pandas pyarrow findspark pytest-xdist pyspark
 cd /home/ubuntu/spark-rapids/integration_tests
 export SPARK_HOME=/databricks/spark
 # change to not point at databricks confs so we don't conflict with their settings
@@ -127,6 +127,13 @@ if [ `ls $DB_JAR_LOC/cudf* | wc -l` -gt 1 ]; then
     ls $DB_JAR_LOC/cudf*
     exit 1
 fi
-$SPARK_HOME/bin/spark-submit ./runtests.py --runtime_env="databricks"
+## $SPARK_HOME/bin/spark-submit ./runtests.py --runtime_env="databricks"
+
+set +ex
+
+#export SCRIPTPATH=/home/ubuntu/spark-rapids/integration_tests && cd $SCRIPTPATH
+#. run_pyspark_from_build.sh --runtime_env="databricks"
+
+echo $1 && echo "End of run_pyspark_from_build.sh"
 cd /home/ubuntu
-tar -zcvf spark-rapids-built.tgz spark-rapids
+## tar -zcf spark-rapids-built.tgz spark-rapids
