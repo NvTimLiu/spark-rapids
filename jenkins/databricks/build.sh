@@ -17,10 +17,10 @@
 
 set -e
 
-SPARKSRCTGZ=$1
+SPARKSRCTGZ=spark-rapids-ci.tgz
 # version of Apache Spark we are building against
-BASE_SPARK_VERSION=$2
-BUILD_PROFILES=$3
+BASE_SPARK_VERSION=3.0.1
+BUILD_PROFILES=''
 
 echo "tgz is $SPARKSRCTGZ"
 echo "Base Spark version is $BASE_SPARK_VERSION"
@@ -31,10 +31,10 @@ sudo apt install -y maven
 # this has to match the Databricks init script
 DB_JAR_LOC=/databricks/jars/
 
-rm -rf spark-rapids
-mkdir spark-rapids
-echo  "tar -zxf $SPARKSRCTGZ -C spark-rapids"
-tar -zxf $SPARKSRCTGZ -C spark-rapids
+###### rm -rf spark-rapids
+###### mkdir spark-rapids
+###### echo  "tar -zxf $SPARKSRCTGZ -C spark-rapids"
+###### tar -zxf $SPARKSRCTGZ -C spark-rapids
 cd spark-rapids
 export WORKSPACE=`pwd`
 
@@ -49,7 +49,7 @@ RAPIDS_BUILT_JAR=rapids-4-spark_$SCALA_VERSION-$SPARK_PLUGIN_JAR_VERSION.jar
 RAPIDS_UDF_JAR=rapids-4-spark-udf-examples-$SPARK_PLUGIN_JAR_VERSION.jar
 
 echo "Scala version is: $SCALA_VERSION"
-mvn -B -P${BUILD_PROFILES} clean package -DskipTests || true
+###### mvn -B -P${BUILD_PROFILES} clean package -DskipTests || true
 # export 'M2DIR' so that shims can get the correct cudf/spark dependnecy info
 export M2DIR=/home/ubuntu/.m2/repository
 CUDF_JAR=${M2DIR}/ai/rapids/cudf/${CUDF_VERSION}/cudf-${CUDF_VERSION}-${CUDA_VERSION}.jar
@@ -63,40 +63,40 @@ COREJAR=----workspace_spark_3_0--core--core-hive-2.3__hadoop-2.7_${SCALA_VERSION
 # install the 3.0.0 pom file so we get dependencies
 COREPOM=spark-core_${SCALA_VERSION}-${BASE_SPARK_VERSION}.pom
 COREPOMPATH=$M2DIR/org/apache/spark/spark-core_${SCALA_VERSION}/${BASE_SPARK_VERSION}
-mvn -B install:install-file \
-   -Dmaven.repo.local=$M2DIR \
-   -Dfile=$JARDIR/$COREJAR \
-   -DgroupId=org.apache.spark \
-   -DartifactId=spark-core_$SCALA_VERSION \
-   -Dversion=$SPARK_VERSION_TO_INSTALL_DATABRICKS_JARS \
-   -Dpackaging=jar \
-   -DpomFile=$COREPOMPATH/$COREPOM
-
-mvn -B install:install-file \
-   -Dmaven.repo.local=$M2DIR \
-   -Dfile=$JARDIR/$CATALYSTJAR \
-   -DgroupId=org.apache.spark \
-   -DartifactId=spark-catalyst_$SCALA_VERSION \
-   -Dversion=$SPARK_VERSION_TO_INSTALL_DATABRICKS_JARS \
-   -Dpackaging=jar
-
-mvn -B install:install-file \
-   -Dmaven.repo.local=$M2DIR \
-   -Dfile=$JARDIR/$SQLJAR \
-   -DgroupId=org.apache.spark \
-   -DartifactId=spark-sql_$SCALA_VERSION \
-   -Dversion=$SPARK_VERSION_TO_INSTALL_DATABRICKS_JARS \
-   -Dpackaging=jar
-
-mvn -B install:install-file \
-   -Dmaven.repo.local=$M2DIR \
-   -Dfile=$JARDIR/$ANNOTJAR \
-   -DgroupId=org.apache.spark \
-   -DartifactId=spark-annotation_$SCALA_VERSION \
-   -Dversion=$SPARK_VERSION_TO_INSTALL_DATABRICKS_JARS \
-   -Dpackaging=jar
-
-mvn -B -P${BUILD_PROFILES} clean package -DskipTests
+###### mvn -B install:install-file \
+######    -Dmaven.repo.local=$M2DIR \
+######    -Dfile=$JARDIR/$COREJAR \
+######    -DgroupId=org.apache.spark \
+######    -DartifactId=spark-core_$SCALA_VERSION \
+######    -Dversion=$SPARK_VERSION_TO_INSTALL_DATABRICKS_JARS \
+######    -Dpackaging=jar \
+######    -DpomFile=$COREPOMPATH/$COREPOM
+######
+###### mvn -B install:install-file \
+######    -Dmaven.repo.local=$M2DIR \
+######    -Dfile=$JARDIR/$CATALYSTJAR \
+######    -DgroupId=org.apache.spark \
+######    -DartifactId=spark-catalyst_$SCALA_VERSION \
+######    -Dversion=$SPARK_VERSION_TO_INSTALL_DATABRICKS_JARS \
+######    -Dpackaging=jar
+######
+###### mvn -B install:install-file \
+######    -Dmaven.repo.local=$M2DIR \
+######    -Dfile=$JARDIR/$SQLJAR \
+######    -DgroupId=org.apache.spark \
+######    -DartifactId=spark-sql_$SCALA_VERSION \
+######    -Dversion=$SPARK_VERSION_TO_INSTALL_DATABRICKS_JARS \
+######    -Dpackaging=jar
+######
+###### mvn -B install:install-file \
+######    -Dmaven.repo.local=$M2DIR \
+######    -Dfile=$JARDIR/$ANNOTJAR \
+######    -DgroupId=org.apache.spark \
+######    -DartifactId=spark-annotation_$SCALA_VERSION \
+######    -Dversion=$SPARK_VERSION_TO_INSTALL_DATABRICKS_JARS \
+######    -Dpackaging=jar
+######
+###### mvn -B -P${BUILD_PROFILES} clean package -DskipTests
 
 # Copy so we pick up new built jar and latest CuDF jar. Note that the jar names have to be
 # exactly what is in the statically setup Databricks cluster we use.
@@ -127,13 +127,16 @@ if [ `ls $DB_JAR_LOC/cudf* | wc -l` -gt 1 ]; then
     ls $DB_JAR_LOC/cudf*
     exit 1
 fi
-## $SPARK_HOME/bin/spark-submit ./runtests.py --runtime_env="databricks"
 
 set +ex
 
-#export SCRIPTPATH=/home/ubuntu/spark-rapids/integration_tests && cd $SCRIPTPATH
-#. run_pyspark_from_build.sh --runtime_env="databricks"
-
+if [ "$TEST_PARALLEL" != 1 ]; then
+export SCRIPTPATH=/home/ubuntu/spark-rapids/integration_tests && cd $SCRIPTPATH
+    . run_pyspark_from_build.sh --runtime_env="databricks"
+else
+$SPARK_HOME/bin/spark-submit ./runtests.py --runtime_env="databricks"
+fi
 echo $1 && echo "End of run_pyspark_from_build.sh"
 cd /home/ubuntu
 ## tar -zcf spark-rapids-built.tgz spark-rapids
+
