@@ -97,7 +97,7 @@ else
         export PYSP_TEST_spark_rapids_memory_gpu_maxAllocFraction=$MEMORY_FRACTION
 
         python \
-          "$SCRIPTPATH"/runtests.py --rootdir "$SCRIPTPATH" "$SCRIPTPATH"/src/main/python \
+          "$SCRIPTPATH"/runtests.py --rootdir "$SCRIPTPATH" "$SCRIPTPATH"/src/main/python/window_function_test.py \
           $TEST_PARALLEL_OPTS \
           -v -rfExXs "$TEST_TAGS" \
           --std_input_path="$SCRIPTPATH"/src/test/resources/ \
