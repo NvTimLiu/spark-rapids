@@ -24,20 +24,29 @@ import params
 
 def main():
 
-  master_addr = ClusterUtils.cluster_get_master_addr(params.workspace, params.clusterid, params.token)
+  master_addr = ClusterUtils.cluster_get_master_addr(workspace, clusterid, token)
   if master_addr is None:
       print("Error, didn't get master address")
       sys.exit(1)
   print("Master node address is: %s" % master_addr)
-
   print("Copying script")
   rsync_command = "rsync -I -Pave \"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2200 -i %s\" %s ubuntu@%s:%s" % (params.private_key_file, params.local_script, master_addr, params.script_dest)
   print("rsync command: %s" % rsync_command)
   subprocess.check_call(rsync_command, shell = True)
 
-  ssh_command = "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@%s -p 2200 -i %s %s %s %s %s 2>&1 | tee testout; if [ `echo ${PIPESTATUS[0]}` -ne 0 ]; then false; else true; fi" % (master_addr, params.private_key_file, params.script_dest)
+  print("Copying source")
+  rsync_command = "rsync -I -Pave \"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2200 -i %s\" %s ubuntu@%s:%s" % (params.private_key_file, params.source_tgz, master_addr, params.tgz_dest)
+  print("rsync command: %s" % rsync_command)
+  subprocess.check_call(rsync_command, shell = True)
+
+  ssh_command = "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@%s -p 2200 -i %s %s %s %s %s 2>&1 | tee buildout; if [ `echo ${PIPESTATUS[0]}` -ne 0 ]; then false; else true; fi" % (master_addr, params.private_key_file, params.script_dest, params.tgz_dest, params.base_spark_pom_version, params.build_profiles)
   print("ssh command: %s" % ssh_command)
   subprocess.check_call(ssh_command, shell = True)
+
+  print("Copying built tarball back")
+  rsync_command = "rsync  -I -Pave \"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2200 -i %s\" ubuntu@%s:/home/ubuntu/spark-rapids-built.tgz ./" % (params.private_key_file, master_addr)
+  print("rsync command to get built tarball: %s" % rsync_command)
+  subprocess.check_call(rsync_command, shell = True)
 
 if __name__ == '__main__':
   main()
