@@ -42,10 +42,10 @@ class ClusterUtils(object):
         templ['autotermination_minutes'] = idle_timeout
         templ['enable_elastic_disk'] = 'false'
         templ['enable_local_disk_encryption'] = 'false'
-        templ['node_type_id'] = worker_node_type
+        templ['node_type_id'] = driver_node_type
         templ['driver_node_type_id'] = driver_node_type
         templ['ssh_public_keys'] = [ sshKey ]
-        templ['num_workers'] = num_workers
+        templ['num_workers'] = 0
         templ['init_scripts'] = [
             {
                 "dbfs": {
