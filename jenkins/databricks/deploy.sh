@@ -19,7 +19,7 @@ set -e
 rm -rf deploy
 mkdir -p deploy
 cd deploy
-tar -zxvf ../spark-rapids-built.tgz
+tar -zxf ../spark-rapids-built.tgz
 cd spark-rapids
 echo "Maven mirror is $MVN_URM_MIRROR"
 SERVER_ID='snapshots'
@@ -32,5 +32,5 @@ SPARK_PLUGIN_JAR_VERSION=`mvn help:evaluate -q -pl dist -Dexpression=project.ver
 DB_SHIM_DIRECTORY=${SPARK_VERSION_STR}db
 DBJARFPATH=./shims/${DB_SHIM_DIRECTORY}/target/rapids-4-spark-shims-$SPARK_VERSION_STR-databricks_$SCALA_VERSION-$SPARK_PLUGIN_JAR_VERSION.jar
 echo "Databricks jar is: $DBJARFPATH"
-mvn -B deploy:deploy-file $MVN_URM_MIRROR '-P!snapshot-shims' -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
-    -Dfile=$DBJARFPATH -DpomFile=shims/${DB_SHIM_DIRECTORY}/pom.xml
+## mvn -B deploy:deploy-file $MVN_URM_MIRROR '-P!snapshot-shims' -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
+##     -Dfile=$DBJARFPATH -DpomFile=shims/${DB_SHIM_DIRECTORY}/pom.xml
