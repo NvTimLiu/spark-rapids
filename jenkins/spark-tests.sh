@@ -89,8 +89,15 @@ start-slave.sh spark://$HOSTNAME:7077
 jps
 
 echo "----------------------------START TEST------------------------------------"
+cd $WORKSPACE/jars
+mv integration_tests/src/main/python/struct_test.py ./
+mv integration_tests/src/main/python/udf_cudf_test.py ./
+find integration_tests -name "*_test.py" | xargs rm -rf && ls -l integration_tests/src/main/python/
+mv *_test.py integration_tests/src/main/python/
+
 pushd $RAPIDS_INT_TESTS_HOME
 TEST_TYPE="nightly"
+
 spark-submit $BASE_SPARK_SUBMIT_ARGS --jars $RAPIDS_TEST_JAR ./runtests.py -v -rfExXs --std_input_path="$WORKSPACE/integration_tests/src/test/resources/" --test_type=$TEST_TYPE
 spark-submit $BASE_SPARK_SUBMIT_ARGS $CUDF_UDF_TEST_ARGS --jars $RAPIDS_TEST_JAR ./runtests.py -m "cudf_udf" -v -rfExXs --cudf_udf --test_type=$TEST_TYPE
 popd
