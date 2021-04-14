@@ -48,13 +48,19 @@ if [ -n "$SPARK_CONF" ]; then
         ## run_pyspark_from_build.sh requires 'export PYSP_TEST_spark_foo=1' as the spark configs
         export PYSP_TEST_${KEY//'.'/'_'}=$VALUE
     done
-fi
 
-## 'spark.foo=1,spark.bar=2,...' to '--conf spark.foo=1 --conf spark.bar=2 --conf ...'
-SPARK_CONF="--conf ${SPARK_CONF/','/' --conf '}"
+    ## 'spark.foo=1,spark.bar=2,...' to '--conf spark.foo=1 --conf spark.bar=2 --conf ...'
+    SPARK_CONF="--conf ${SPARK_CONF/','/' --conf '}"
+fi
 
 TEST_TYPE="nightly"
 if [ -d "$LOCAL_JAR_PATH" ]; then
+cd "$LOCAL_JAR_PATH"
+mv integration_tests/src/main/python/struct_test.py ./
+mv integration_tests/src/main/python/udf_cudf_test.py ./
+find integration_tests -name "*_test.py" | xargs rm -rf
+mv *_test.py integration_tests/src/main/python/
+
     ## Run tests with jars in the LOCAL_JAR_PATH dir downloading from the denpedency repo
     LOCAL_JAR_PATH=$LOCAL_JAR_PATH bash $LOCAL_JAR_PATH/integration_tests/run_pyspark_from_build.sh  --runtime_env="databricks" --test_type=$TEST_TYPE
 
@@ -63,6 +69,12 @@ if [ -d "$LOCAL_JAR_PATH" ]; then
     LOCAL_JAR_PATH=$LOCAL_JAR_PATH SPARK_SUBMIT_FLAGS="$SPARK_CONF $CUDF_UDF_TEST_ARGS" TEST_PARALLEL=1 \
         bash $LOCAL_JAR_PATH/integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" -m "cudf_udf" --cudf_udf --test_type=$TEST_TYPE
 else
+cd /home/ubuntu/spark-rapids/
+mv integration_tests/src/main/python/struct_test.py ./
+mv integration_tests/src/main/python/udf_cudf_test.py ./
+find integration_tests -name "*_test.py" | xargs rm -rf
+mv *_test.py integration_tests/src/main/python/
+
     ## Run tests with jars building from the spark-rapids source code
     bash /home/ubuntu/spark-rapids/integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE
 
