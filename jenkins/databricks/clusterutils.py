@@ -51,6 +51,11 @@ class ClusterUtils(object):
                 "dbfs": {
                      "destination": "dbfs:/databricks/init_scripts/init_cudf_udf.sh"
                 }
+            },
+            {
+                "dbfs": {
+                     "destination": "dbfs:/databricks/init_scripts/init_cuda11_runtime.sh"
+                }
             }
         ]
         return templ
