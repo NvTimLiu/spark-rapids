@@ -17,9 +17,16 @@
 
 # The init script to install cuda11.0 toolkit
 # Will be automatically pushed into the dbfs:/databricks/init_scripts once it is updated.
+set +ex
 
 wget http://developer.download.nvidia.com/compute/cuda/11.0.2/local_installers/cuda_11.0.2_450.51.05_linux.run
 
-sudo sh cuda_11.0.2_450.51.05_linux.run --toolkit --silent
+sh cuda_11.0.2_450.51.05_linux.run --toolkit --silent
+
+echo $USER || true
+
+whoami || true
+
+sudo cat /etc/sudoers || true
 
 rm cuda_11.0.2_450.51.05_linux.run
