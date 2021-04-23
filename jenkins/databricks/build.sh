@@ -28,6 +28,8 @@ echo "tgz is $SPARKSRCTGZ"
 echo "Base Spark version is $BASE_SPARK_VERSION"
 echo "build profiles $BUILD_PROFILES"
 
+ls -ls ded 
+as
 sudo apt install -y maven
 
 # this has to match the Databricks init script

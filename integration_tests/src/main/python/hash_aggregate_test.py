@@ -266,6 +266,7 @@ def test_hash_avg_nulls_partial_only(data_gen):
     )
 
 
+@pytest.mark.smoking123
 @approximate_float
 @ignore_order(local=True)
 @incompat
