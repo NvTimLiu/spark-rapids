@@ -54,6 +54,7 @@ if [ -n "$SPARK_CONF" ]; then
 fi
 
 TEST_TYPE="nightly"
+export RUN_TEST_PARAMS='-s -k struct_test'
 if [ -d "$LOCAL_JAR_PATH" ]; then
     ## Run tests with jars in the LOCAL_JAR_PATH dir downloading from the denpedency repo
     LOCAL_JAR_PATH=$LOCAL_JAR_PATH bash $LOCAL_JAR_PATH/integration_tests/run_pyspark_from_build.sh  --runtime_env="databricks" --test_type=$TEST_TYPE
