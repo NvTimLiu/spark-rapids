@@ -85,6 +85,14 @@
 
     <profiles>
         <profile>
+            <id>scala-2.13</id>
+            <properties>
+                  <scala.version>2.13.5</scala.version>
+                  <scala.binary.version>2.13</scala.binary.version>
+            </properties>
+        </profile>
+
+        <profile>
             <id>udf-compiler</id>
             <modules>
                 <module>udf-compiler</module>
@@ -231,12 +239,12 @@
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <spark.version>${spark301.version}</spark.version>
-        <spark.test.version>${spark301.version}</spark.test.version>
+        <spark.version>${spark302.version}</spark.version>
+        <spark.test.version>${spark320.version}</spark.test.version>
         <cuda.version>cuda11</cuda.version>
         <cudf.version>21.10.0-SNAPSHOT</cudf.version>
-        <scala.binary.version>2.12</scala.binary.version>
-        <scala.version>2.12.8</scala.version>
+        <scala.binary.version>2.13</scala.binary.version>
+        <scala.version>2.13.5</scala.version>
         <orc.version>1.5.8</orc.version>
         <orc.classifier></orc.classifier>
         <!--
@@ -495,7 +503,6 @@
                             <arg>-deprecation</arg>
                             <arg>-feature</arg>
                             <arg>-explaintypes</arg>
-                            <arg>-Yno-adapted-args</arg>
                         </args>
                         <jvmArgs>
                             <jvmArg>-Xms1024m</jvmArg>

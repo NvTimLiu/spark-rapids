@@ -35,7 +35,7 @@ WORKSPACE=${WORKSPACE:-"$MY_PATH/.."}
 ${WORKSPACE}/jenkins/printJarVersion.sh "cudf_version" "${M2DIR}/ai/rapids/cudf/${CUDF_VER}" "cudf-${CUDF_VER}" "-${CUDA_CLASSIFIER}.jar" $SERVER_ID
 
 SPARK_VER=$3
-SPARK_SQL_VER=`${WORKSPACE}/jenkins/printJarVersion.sh "spark_version" "${M2DIR}/org/apache/spark/spark-sql_2.12/${SPARK_VER}" "spark-sql_2.12-${SPARK_VER}" ".jar" $SERVER_ID`
+SPARK_SQL_VER=`${WORKSPACE}/jenkins/printJarVersion.sh "spark_version" "${M2DIR}/org/apache/spark/spark-sql_2.13/${SPARK_VER}" "spark-sql_2.13-${SPARK_VER}" ".jar" $SERVER_ID`
 
-# Split spark version from spark-sql_2.12 jar filename
-echo ${SPARK_SQL_VER/"-sql_2.12"/}
+# Split spark version from spark-sql_2.13 jar filename
+echo ${SPARK_SQL_VER/"-sql_2.13"/}

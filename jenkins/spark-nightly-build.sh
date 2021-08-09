@@ -35,4 +35,4 @@ mvn -U -B -Pspark313tests,snapshot-shims test $MVN_URM_MIRROR -Dmaven.repo.local
 
 # Parse cudf and spark files from local mvn repo
 jenkins/printJarVersion.sh "CUDFVersion" "$M2DIR/ai/rapids/cudf/${CUDF_VER}" "cudf-${CUDF_VER}" "-${CUDA_CLASSIFIER}.jar" $SERVER_ID
-jenkins/printJarVersion.sh "SPARKVersion" "$M2DIR/org/apache/spark/spark-core_2.12/${SPARK_VER}" "spark-core_2.12-${SPARK_VER}" ".jar" $SERVER_ID
+jenkins/printJarVersion.sh "SPARKVersion" "$M2DIR/org/apache/spark/spark-core_2.13/${SPARK_VER}" "spark-core_2.13-${SPARK_VER}" ".jar" $SERVER_ID
