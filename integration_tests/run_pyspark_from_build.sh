@@ -202,7 +202,6 @@ else
       fi
     fi
 
-    TEST_PARALLEL_OPTS=()
     if ((${#TEST_PARALLEL_OPTS[@]} > 0));
     then
         export PYSP_TEST_spark_rapids_memory_gpu_allocFraction=$MEMORY_FRACTION
