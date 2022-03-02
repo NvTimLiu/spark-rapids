@@ -228,6 +228,7 @@ export -f get_tests_by_tags
 # - IT_ONLY
 # - CUDF_UDF_ONLY
 # - ALL: IT+CUDF_UDF
+PARALLEL_TEST="false"
 TEST_MODE=${TEST_MODE:-'IT_ONLY'}
 if [[ $TEST_MODE == "ALL" || $TEST_MODE == "IT_ONLY" ]]; then
   # integration tests
@@ -260,7 +261,7 @@ if [[ $TEST_MODE == "ALL" || $TEST_MODE == "IT_ONLY" ]]; then
     --conf spark.rapids.memory.gpu.maxAllocFraction=${MEMORY_FRACTION}"
     parallel --group --halt "now,fail=1" -j"${PARALLELISM}" run_test_not_parallel ::: ${tests}
   else
-    run_test_not_parallel all
+    run_test_not_parallel json_test
   fi
 
   if [[ "$IS_SPARK_311_OR_LATER" -eq "1" ]]; then
