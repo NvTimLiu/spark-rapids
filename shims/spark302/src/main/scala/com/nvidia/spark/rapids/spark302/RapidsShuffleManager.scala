@@ -14,17 +14,13 @@
  * limitations under the License.
  */
 
-package org.apache.spark.shuffle
+package com.nvidia.spark.rapids.spark302
 
-import org.apache.spark.storage.BlockManagerId
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.rapids.shims.spark301.RapidsShuffleInternalManager
 
-class RapidsShuffleFetchFailedException(
-    bmAddress: BlockManagerId,
-    shuffleId: Int,
-    mapId: Long,
-    mapIndex: Int,
-    reduceId: Int,
-    message: String)
-    extends FetchFailedException(
-      bmAddress, shuffleId, mapId, mapIndex, reduceId, message) {
+/** A shuffle manager optimized for the RAPIDS Plugin for Apache Spark. */
+sealed class RapidsShuffleManager(
+    conf: SparkConf,
+    isDriver: Boolean) extends RapidsShuffleInternalManager(conf, isDriver) {
 }

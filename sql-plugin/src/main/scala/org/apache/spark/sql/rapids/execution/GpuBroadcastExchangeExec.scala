@@ -222,21 +222,20 @@ class GpuBroadcastMeta(
         willNotWorkOnGpu("BroadcastExchange only works on the GPU if being used " +
             "with a GPU version of BroadcastHashJoinExec or BroadcastNestedLoopJoinExec")
       }
-    } else {
-      // when AQE is enabled and we are planning a new query stage, parent will be None so
-      // we need to look at meta-data previously stored on the spark plan
-      wrapped.getTagValue(gpuSupportedTag) match {
-        case Some(reason) => willNotWorkOnGpu(reason)
-        case None => // this broadcast is supported on GPU
-      }
     }
+    // when AQE is enabled and we are planning a new query stage, we need to look at meta-data
+    // previously stored on the spark plan to determine whether this exchange can run on GPU
+    wrapped.getTagValue(gpuSupportedTag).foreach(_.foreach(willNotWorkOnGpu))
   }
 
-  override def convertToGpu(): GpuExec =
-    execution.GpuBroadcastExchangeExec(exchange.mode, childPlans(0).convertIfNeeded())
+  override def convertToGpu(): GpuExec = {
+    ShimLoader.getSparkShims.getGpuBroadcastExchangeExec(
+      exchange.mode, childPlans(0).convertIfNeeded())
+  }
+
 }
 
-case class GpuBroadcastExchangeExec(
+abstract class GpuBroadcastExchangeExecBase(
     mode: BroadcastMode,
     child: SparkPlan) extends Exchange with GpuExec {
 
@@ -247,10 +246,6 @@ case class GpuBroadcastExchangeExec(
     "broadcastTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to broadcast"))
 
   override def outputPartitioning: Partitioning = BroadcastPartitioning(mode)
-
-  override def doCanonicalize(): SparkPlan = {
-    GpuBroadcastExchangeExec(mode.canonicalized, child.canonicalized)
-  }
 
   @transient
   private lazy val promise = Promise[broadcast.Broadcast[Any]]()
@@ -265,7 +260,7 @@ case class GpuBroadcastExchangeExec(
   @transient
   private val timeout: Long = SQLConf.get.broadcastTimeout
 
-  val runId: UUID = UUID.randomUUID
+  val _runId: UUID = UUID.randomUUID()
 
   @transient
   lazy val relationFuture: Future[broadcast.Broadcast[Any]] = {
@@ -286,7 +281,7 @@ case class GpuBroadcastExchangeExec(
           val totalRange = new MetricRange(totalTime)
           try {
             // Setup a job group here so later it may get cancelled by groupId if necessary.
-            sparkContext.setJobGroup(runId.toString, s"broadcast exchange (runId $runId)",
+            sparkContext.setJobGroup(_runId.toString, s"broadcast exchange (runId ${_runId})",
               interruptOnCancel = true)
             val collectRange = new NvtxWithMetrics("broadcast collect", NvtxColor.GREEN,
               collectTime)
@@ -381,7 +376,7 @@ case class GpuBroadcastExchangeExec(
       case ex: TimeoutException =>
         logError(s"Could not execute broadcast in $timeout secs.", ex)
         if (!relationFuture.isDone) {
-          sparkContext.cancelJobGroup(runId.toString)
+          sparkContext.cancelJobGroup(_runId.toString)
           relationFuture.cancel(true)
         }
         throw new SparkException(s"Could not execute broadcast in $timeout secs. " +
@@ -401,7 +396,7 @@ case class GpuBroadcastExchangeExec(
       case ex: TimeoutException =>
         logError(s"Could not execute broadcast in $timeout secs.", ex)
         if (!relationFuture.isDone) {
-          sparkContext.cancelJobGroup(runId.toString)
+          sparkContext.cancelJobGroup(_runId.toString)
           relationFuture.cancel(true)
         }
         throw new SparkException(s"Could not execute broadcast in $timeout secs. " +
@@ -439,7 +434,7 @@ object GpuBroadcastExchangeExec {
     threadPool
   }
 
-  private val executionContext = ExecutionContext.fromExecutorService(
+  val executionContext = ExecutionContext.fromExecutorService(
     newDaemonCachedThreadPool("gpu-broadcast-exchange",
       SQLConf.get.getConf(StaticSQLConf.BROADCAST_EXCHANGE_MAX_THREAD_THRESHOLD)))
 }

@@ -18,6 +18,8 @@ package com.nvidia.spark.rapids
 
 import java.sql.Timestamp
 
+import org.apache.spark
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import org.apache.spark.sql.execution.{SparkPlan, WholeStageCodegenExec}
@@ -1566,14 +1568,19 @@ class HashAggregatesSuite extends SparkQueryCompareTestSuite {
       res
   }
 
-  // A test that verifies that Distinct with Filter is not supported on the CPU or the GPU.
-  testExpectedExceptionStartsWith(
-      "Avg Distinct with filter - unsupported on CPU and GPU",
-      classOf[AnalysisException],
-      "DISTINCT and FILTER cannot be used in aggregate functions at the same time",
-      longsFromCSVDf, conf = floatAggConf) {
-    frame => val res = frame.selectExpr("avg(distinct longs) filter (where longs < 5)")
-      res
+  if (spark.SPARK_VERSION_SHORT < "3.1.0") {
+    // A test that verifies that Distinct with Filter is not supported on the CPU or the GPU.
+    testExpectedExceptionStartsWith(
+        "Avg Distinct with filter - unsupported on CPU and GPU",
+        classOf[AnalysisException],
+        "DISTINCT and FILTER cannot be used in aggregate functions at the same time",
+        longsFromCSVDf, conf = floatAggConf) {
+      frame => frame.selectExpr("avg(distinct longs) filter (where longs < 5)")
+    }
+  } else {
+    testSparkResultsAreEqual("Avg Distinct with filter", longsFromCSVDf, conf = floatAggConf) {
+      frame => frame.selectExpr("avg(distinct longs) filter (where longs < 5)")
+    }
   }
 
   testSparkResultsAreEqualWithCapture("PartMerge:avg_overflow_cast_dbl", veryLargeLongsFromCSVDf,
@@ -1627,5 +1634,46 @@ class HashAggregatesSuite extends SparkQueryCompareTestSuite {
       .set(RapidsConf.HAS_NANS.key, "false")
       .set(RapidsConf.ENABLE_FLOAT_AGG.key, "true")) {
     frame => frame.groupBy(col("double")).agg(sum(col("int")))
+  }
+
+  testSparkResultsAreEqual("Agg expression with filter avg with nulls", nullDf, execsAllowedNonGpu =
+    Seq("HashAggregateExec", "AggregateExpression", "AttributeReference", "Alias", "Average",
+      "Count", "Cast"),
+    conf = partialOnlyConf, repart = 2) {
+    frame => frame.createOrReplaceTempView("testTable")
+      frame.sparkSession.sql(
+        s"""
+           | SELECT
+           |   avg(more_longs) filter (where more_longs > 2)
+           | FROM testTable
+           |   group by longs
+           |""".stripMargin)
+  }
+
+  testSparkResultsAreEqual("Agg expression with filter count with nulls",
+    nullDf, execsAllowedNonGpu = Seq("HashAggregateExec", "AggregateExpression",
+      "AttributeReference", "Alias", "Count", "Cast"),
+    conf = partialOnlyConf, repart = 2) {
+    frame => frame.createOrReplaceTempView("testTable")
+      frame.sparkSession.sql(
+        s"""
+           | SELECT
+           |   count(more_longs) filter (where more_longs > 2)
+           | FROM testTable
+           |   group by longs
+           |""".stripMargin)
+  }
+
+  testSparkResultsAreEqual("Agg expression with filter sum with nulls", nullDf, execsAllowedNonGpu =
+    Seq("HashAggregateExec", "AggregateExpression", "AttributeReference", "Alias", "Sum", "Cast"),
+    conf = partialOnlyConf, repart = 2) {
+    frame => frame.createOrReplaceTempView("testTable")
+      frame.sparkSession.sql(
+        s"""
+           | SELECT
+           |   sum(more_longs) filter (where more_longs > 2)
+           | FROM testTable
+           |   group by longs
+           |""".stripMargin)
   }
 }
