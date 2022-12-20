@@ -148,9 +148,9 @@ SPARK2_ART_VER=`mvn help:evaluate -q -pl $SPARK2_PL -Dexpression=project.version
 SPARK2_FPATH="$M2DIR/com/nvidia/$SPARK2_ART_ID/$SPARK2_ART_VER/$SPARK2_ART_ID-$SPARK2_ART_VER"
 SPARK2_POM=${SPARK2_PL}/pom.xml
 # a bit ugly but just hardcode to spark24 for now since only version supported
-wget -q https://repo.maven.apache.org/maven2/com/nvidia/spark2-sql-plugin_2.12/22.12.0/spark2-sql-plugin_2.12-22.12.0-cuda11.jar -P $(dirname $SPARK2_FPATH.jar)
-wget -q https://repo.maven.apache.org/maven2/com/nvidia/spark2-sql-plugin_2.12/22.12.0/spark2-sql-plugin_2.12-22.12.0-sources.jar -P $(dirname ${SPARK2_FPATH}-sources.jar)
-wget -q https://repo.maven.apache.org/maven2/com/nvidia/spark2-sql-plugin_2.12/22.12.0/spark2-sql-plugin_2.12-22.12.0-javadoc.jar -P $(dirname ${SPARK2_FPATH}-javadoc.jar)
+wget -q https://repo.maven.apache.org/maven2/com/nvidia/rapids-4-spark-sql-meta_2.11/22.12.0/rapids-4-spark-sql-meta_2.11-22.12.0-cuda11.jar -P $(dirname $SPARK2_FPATH.jar)
+wget -q https://repo.maven.apache.org/maven2/com/nvidia/rapids-4-spark-sql-meta_2.11/22.12.0/rapids-4-spark-sql-meta_2.11-22.12.0-sources.jar -P $(dirname ${SPARK2_FPATH}-sources.jar)
+wget -q https://repo.maven.apache.org/maven2/com/nvidia/rapids-4-spark-sql-meta_2.11/22.12.0/rapids-4-spark-sql-meta_2.11-22.12.0-javadoc.jar -P $(dirname ${SPARK2_FPATH}-javadoc.jar)
 SPARK2_CLASSIFIER='spark24'
 # Oss requires a main jar file along with classifier jars
 cp ${SPARK2_FPATH}-${SPARK2_CLASSIFIER}.jar ${SPARK2_FPATH}.jar
