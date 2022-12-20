@@ -85,8 +85,8 @@ JS_FPATH="${SQL_PL}/target/spark${FINAL_AGG_VERSION_TOBUILD}/${SQL_ART_ID}-${SQL
 
 wget -q https://repo.maven.apache.org/maven2/com/nvidia/rapids-4-spark_2.12/22.12.0/rapids-4-spark_2.12-22.12.0.pom -O pom-dist.xml && mkdir -p $(dirname $DIST_POM) && mv pom-dist.xml $DIST_POM
 wget -q https://repo.maven.apache.org/maven2/com/nvidia/rapids-4-spark_2.12/22.12.0/rapids-4-spark_2.12-22.12.0-cuda11.jar -P $(dirname $FPATH.jar)
-wget -q https://repo.maven.apache.org/maven2/com/nvidia/rapids-4-spark_2.12/22.12.0/rapids-4-spark_2.12-22.12.0-sources.jar -P $(dirname ${JS_FPATH}-sources.jar)
-wget -q https://repo.maven.apache.org/maven2/com/nvidia/rapids-4-spark_2.12/22.12.0/rapids-4-spark_2.12-22.12.0-javadoc.jar -P $(dirname ${JS_FPATH}-javadoc.jar)
+wget -q https://repo.maven.apache.org/maven2/com/nvidia/rapids-4-spark_2.12/22.12.0/rapids-4-spark_2.12-22.12.0-sources.jar -O sources.jar && mkdir -p $(dirname ${JS_FPATH}-sources.jar) && mv sources.jar ${JS_FPATH}-sources.jar
+wget -q https://repo.maven.apache.org/maven2/com/nvidia/rapids-4-spark_2.12/22.12.0/rapids-4-spark_2.12-22.12.0-javadoc.jar -O javadoc.jar && mkdir -p $(dirname ${JS_FPATH}-javadoc.jar) && mv javadoc.jar ${JS_FPATH}-javadoc.jar
 
 if [ "$SIGN_FILE" == true ]; then
     $SIGN_CMD --file $FPATH.jar --out-dir $(dirname $FPATH.jar)
