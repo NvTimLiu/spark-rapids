@@ -17,6 +17,7 @@ set -ex
 SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 cd "$SCRIPTPATH"
 
+TEST=sample_test
 if [[ $( echo ${SKIP_TESTS} | tr [:upper:] [:lower:] ) == "true" ]];
 then
     echo "PYTHON INTEGRATION TESTS SKIPPED..."
