@@ -42,7 +42,7 @@
 #   3. If you had to go beyond the above steps to support the new runtime, then update the
 #      instructions accordingly.
 set -ex
-
+clear && clear
 # Map of software versions for each dependency.
 declare -A sw_versions
 
@@ -89,6 +89,20 @@ if [ -d "${CONDA_HOME}/envs/cudf-udf" ]; then
     done
 fi
 
+# Install if python-pip is not installed
+if [ -z "$(python -m pip --version || true)" ]; then
+    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+        python get-pip.py && rm get-pip.py
+fi
+
+# Use "python -m pip install" to avoid pip version mismatch with python version.
+PYTHON_FILE=$(which python)
+sudo $PYTHON_FILE -m pip install pytest sre_yield requests pandas pyarrow findspark pytest-xdist pytest-order
+## # The Error "Python in worker has different version x.x than that in driver x.x" is reported, when there're mutli versions
+## # of python, but does not run test with default python, Keep worker and driver python consistent to avoid error
+## export PYSPARK_PYTHON=$PYTHON_FILE
+## export PYSPARK_DRIVER_PYTHON=$PYTHON_FILE
+
 export SPARK_HOME=/databricks/spark
 # change to not point at databricks confs so we don't conflict with their settings
 export SPARK_CONF_DIR=$PWD
@@ -112,11 +126,12 @@ esac
 sw_versions[ICEBERG_SPARK]=$(echo $BASE_SPARK_VERSION | cut -d. -f1,2)
 # Get the correct py4j file.
 PY4J_FILE=$(find $SPARK_HOME/python/lib -type f -iname "py4j*.zip")
-# Set the path of python site-packages
-PYTHON_SITE_PACKAGES=/databricks/python3/lib/${sw_versions[PYTHON]}/site-packages
+# Set the path of python site-packages for the packages installed by pip
+# the string of site-packages path is like 'Location: /databricks/pythonXX/lib/site-packages'
+PYTHON_SITE_PACKAGES=$(python -m pip show "pytest" | grep "Location:" | awk -F "[: ]+" '{print $2}')
 # Databricks Koalas can conflict with the actual Pandas version, so put site packages first.
 # Note that Koala is deprecated for DB10.4+ and it is recommended to use Pandas API on Spark instead.
-export PYTHONPATH=$PATCH_PACKAGES_PATH:$PYTHON_SITE_PACKAGES:$SPARK_HOME/python:$SPARK_HOME/python/pyspark/:$PY4J_FILE
+export PYTHONPATH=$PYTHON_SITE_PACKAGES:$SPARK_HOME/python:$SPARK_HOME/python/pyspark/:$PY4J_FILE
 sudo ln -s /databricks/jars/ $SPARK_HOME/jars || true
 sudo chmod 777 /databricks/data/logs/
 sudo chmod 777 /databricks/data/logs/*
@@ -199,6 +214,7 @@ if [ -d "$LOCAL_JAR_PATH" ]; then
     fi
 
     if [[ "$TEST_MODE" == "CUDF_UDF_ONLY" ]]; then
+
         ## Run cudf-udf tests
         CUDF_UDF_TEST_ARGS="$CUDF_UDF_TEST_ARGS --conf spark.executorEnv.PYTHONPATH=`ls $LOCAL_JAR_PATH/rapids-4-spark_*.jar | grep -v 'tests.jar'`"
         LOCAL_JAR_PATH=$LOCAL_JAR_PATH SPARK_SUBMIT_FLAGS="$SPARK_CONF $CUDF_UDF_TEST_ARGS" TEST_PARALLEL=1 \
@@ -213,35 +229,35 @@ if [ -d "$LOCAL_JAR_PATH" ]; then
 else
     if [[ $TEST_MODE == "DEFAULT" ]]; then
         ## Run tests with jars building from the spark-rapids source code
-        bash /home/ubuntu/spark-rapids/integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE
+        bash /home/ubuntu/spark-rapids/integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE -k explain_test
 
         ## Run cache tests
-        if [[ "$IS_SPARK_311_OR_LATER" -eq "1" ]]; then
+        if [[ "$IS_SPARK_311_OR_LATER__" -eq "1" ]]; then
             PYSP_TEST_spark_sql_cache_serializer=${PCBS_CONF} \
             bash /home/ubuntu/spark-rapids/integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE -k cache_test
         fi
     fi
 
-    if [[ "$TEST_MODE" == "CUDF_UDF_ONLY" ]]; then
+    if [[ $TEST_MODE__ == "DEFAULT" || "$TEST_MODE" == "CUDF_UDF_ONLY" ]]; then
         ## Run cudf-udf tests
         CUDF_UDF_TEST_ARGS="$CUDF_UDF_TEST_ARGS --conf spark.executorEnv.PYTHONPATH=`ls /home/ubuntu/spark-rapids/dist/target/rapids-4-spark_*.jar | grep -v 'tests.jar'`"
         SPARK_SUBMIT_FLAGS="$SPARK_CONF $CUDF_UDF_TEST_ARGS" TEST_PARALLEL=0 \
             bash /home/ubuntu/spark-rapids/integration_tests/run_pyspark_from_build.sh --runtime_env="databricks"  -m "cudf_udf" --cudf_udf --test_type=$TEST_TYPE
     fi
 
-    if [[ "$TEST_MODE" == "DEFAULT" || "$TEST_MODE" == "ICEBERG_ONLY" ]]; then
+    if [[ "$TEST_MODE__" == "DEFAULT" || "$TEST_MODE" == "ICEBERG_ONLY" ]]; then
         ## Run Iceberg tests
         SPARK_SUBMIT_FLAGS="$SPARK_CONF $ICEBERG_CONFS" TEST_PARALLEL=1 \
             bash /home/ubuntu/spark-rapids/integration_tests/run_pyspark_from_build.sh --runtime_env="databricks"  -m iceberg --iceberg --test_type=$TEST_TYPE
     fi
 
-    if [[ "$TEST_MODE" == "DEFAULT" || "$TEST_MODE" == "DELTA_LAKE_ONLY" ]]; then
+    if [[ "$TEST_MODE__" == "DEFAULT" || "$TEST_MODE" == "DELTA_LAKE_ONLY" ]]; then
         ## Run Delta Lake tests
         SPARK_SUBMIT_FLAGS="$SPARK_CONF $DELTA_LAKE_CONFS" TEST_PARALLEL=1 \
             bash /home/ubuntu/spark-rapids/integration_tests/run_pyspark_from_build.sh --runtime_env="databricks"  -m "delta_lake" --delta_lake --test_type=$TEST_TYPE
     fi
 
-    if [[ "$TEST_MODE" == "DEFAULT" || "$TEST_MODE" == "MULTITHREADED_SHUFFLE" ]]; then
+    if [[ "$TEST_MODE__" == "DEFAULT" || "$TEST_MODE" == "MULTITHREADED_SHUFFLE" ]]; then
         ## Mutithreaded Shuffle test
         rapids_shuffle_smoke_test
     fi
