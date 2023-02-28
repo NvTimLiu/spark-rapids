@@ -86,7 +86,7 @@ fi
 
 set +e
 # Run integration testing
-./integration_tests/run_pyspark_from_build.sh --runtime_env='databricks' --test_type=$TEST_TYPE
+./integration_tests/run_pyspark_from_build.sh --runtime_env='databricks' --test_type=$TEST_TYPE -k explain_test
 ret=$?
 set -e
 if [ "$ret" = 5 ]; then

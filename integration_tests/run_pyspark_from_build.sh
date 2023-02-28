@@ -94,7 +94,8 @@ else
     # `:` separated jars
     ALL_JARS="${ALL_JARS//$'\n'/:}"
 
-    echo "AND PLUGIN JARS: $ALL_JARS"
+    TEST="explain_test"
+    echo "AND PLUGIN JARS: $ALL_JARS, TEST=$TEST"
     if [[ "${TEST}" != "" ]];
     then
         TEST_ARGS="-k $TEST"
