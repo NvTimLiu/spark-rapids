@@ -75,49 +75,40 @@ pipeline {
         PVC = credentials("pvc")
         CUSTOM_WORKSPACE = "/home/jenkins/agent/workspace/${BUILD_TAG}"
         CUDA_CLASSIFIER = 'cuda11'
-        // DB related ENVs
-        IDLE_TIMEOUT = '390' // 6.5 hours
-        NUM_WORKERS = '0'
-        DB_TYPE = getDbType()
-        DATABRICKS_HOST = DbUtils.getHost("$DB_TYPE")
-        DATABRICKS_TOKEN = credentials("${DbUtils.getToken("$DB_TYPE")}")
-        DATABRICKS_PUBKEY = credentials("SPARK_DATABRICKS_PUBKEY")
-        DATABRICKS_DRIVER = DbUtils.getDriver("$DB_TYPE")
-        DATABRICKS_WORKER = DbUtils.getWorker("$DB_TYPE")
-        INIT_SCRIPTS_DIR = "dbfs:/databricks/init_scripts/${BUILD_TAG}"
     }
 
     stages {
         stage("Init githubHelper") {
             steps {
                 script {
-                    githubHelper = GithubHelper.getInstance("${GITHUB_TOKEN}", params.GITHUB_DATA)
-                    // desc contains the PR ID and can be accessed from different builds
-                    currentBuild.description = githubHelper.getBuildDescription()
-                    try {
-                        // quiet period here in case the first build of two close dup triggers has not set desc
-                        sleep(time: 30, unit: "SECONDS")
-                        // abort duplicate running builds of the same PR (based on build desc)
-                        abortDupBuilds()
-                    } catch (e) { // do not block following build if abort failure
-                        echo "failed to try abort duplicate builds: " + e.toString()
-                    }
-
-                    def title = githubHelper.getIssue().title.toLowerCase()
-                    if (title ==~ /.*\[skip ci\].*/) {
-                        githubHelper.updateCommitStatus("$BUILD_URL", "Skipped", GitHubCommitState.SUCCESS)
-                        currentBuild.result == "SUCCESS"
-                        skipped = true
-                        return
-                    }
-                    checkoutCode(githubHelper.getCloneUrl(), githubHelper.getMergedSHA())
-                    // check if need trigger databricks CI build
-                    if (title ==~ /.*\[databricks\].*/ || databricksCodeChanged()) {
-                        db_build = true
-                    }
+//                    ///githubHelper = GithubHelper.getInstance("${GITHUB_TOKEN}", params.GITHUB_DATA)
+//                    // desc contains the PR ID and can be accessed from different builds
+//                    currentBuild.description = ///githubHelper.getBuildDescription()
+//                    try {
+//                        // quiet period here in case the first build of two close dup triggers has not set desc
+//                        sleep(time: 30, unit: "SECONDS")
+//                        // abort duplicate running builds of the same PR (based on build desc)
+//                        abortDupBuilds()
+//                    } catch (e) { // do not block following build if abort failure
+//                        echo "failed to try abort duplicate builds: " + e.toString()
+//                    }
+//
+//                    def title = ///githubHelper.getIssue().title.toLowerCase()
+//                    if (title ==~ /.*\[skip ci\].*/) {
+//                        ///githubHelper.updateCommitStatus("$BUILD_URL", "Skipped", GitHubCommitState.SUCCESS)
+//                        currentBuild.result == "SUCCESS"
+//                        skipped = true
+//                        return
+//                    }
+//                    checkoutCode(///githubHelper.getCloneUrl(), ///githubHelper.getMergedSHA())
+                    checkoutCode("https://github.com/NvTimLiu/spark-rapids.git", "branch-23.06")
+//                    // check if need trigger databricks CI build
+//                    if (title ==~ /.*\[databricks\].*/ || databricksCodeChanged()) {
+//                        db_build = true
+//                    }
                 }
             }
-        } // end of Init githubHelper
+        } // end of Init ///githubHelper
 
         stage('Build docker image') {
             when {
@@ -139,7 +130,7 @@ pipeline {
 
             steps {
                 script {
-                    githubHelper.updateCommitStatus("$BUILD_URL", "Running", GitHubCommitState.PENDING)
+                    ///githubHelper.updateCommitStatus("$BUILD_URL", "Running", GitHubCommitState.PENDING)
                     unstash "source_tree"
                     container('docker-build') {
                         // check if pre-merge dockerfile modified
@@ -183,8 +174,8 @@ pipeline {
             }
             steps {
                 script {
-                    githubHelper.updateCommitStatus("$BUILD_URL", "Running - includes databricks", GitHubCommitState.PENDING)
-                    unstash "source_tree"
+                    ///githubHelper.updateCommitStatus("$BUILD_URL", "Running - includes databricks", GitHubCommitState.PENDING)
+echo "000"//                    unstash "source_tree"
                 }
             }
         }
@@ -222,13 +213,13 @@ pipeline {
                             container('gpu') {
                                 timeout(time: 4, unit: 'HOURS') { // step only timeout for test run
                                     try {
-                                        sh "$PREMERGE_SCRIPT mvn_verify"
-                                        step([$class                : 'JacocoPublisher',
-                                              execPattern           : '**/target/jacoco.exec',
-                                              classPattern          : 'target/jacoco_classes/',
-                                              sourceInclusionPattern: '**/*.java,**/*.scala',
-                                              sourcePattern         : sourcePattern
-                                        ])
+echo "$PREMERGE_SCRIPT mvn_verify"//                                        sh "$PREMERGE_SCRIPT mvn_verify"
+//                                        step([$class                : 'JacocoPublisher',
+//                                              execPattern           : '**/target/jacoco.exec',
+//                                              classPattern          : 'target/jacoco_classes/',
+//                                              sourceInclusionPattern: '**/*.java,**/*.scala',
+//                                              sourcePattern         : sourcePattern
+//                                        ])
                                     } finally {
                                         common.publishPytestResult(this, "${STAGE_NAME}")
                                     }
@@ -258,7 +249,7 @@ pipeline {
                             container('gpu') {
                                 timeout(time: 4, unit: 'HOURS') {
                                     try {
-                                        sh "$PREMERGE_SCRIPT ci_2"
+echo"$PREMERGE_SCRIPT ci_2"//                                        sh "$PREMERGE_SCRIPT ci_2"
                                     } finally {
                                         common.publishPytestResult(this, "${STAGE_NAME}")
                                     }
@@ -268,6 +259,18 @@ pipeline {
                     }
                 } // end of Unit Test stage
 
+                stage('DB runtime') {
+                    steps {
+                        build(job: 'tim-rapids-databricks_premerge-github',
+                            propagate: true, wait: true,
+                            parameters: [
+                                    string(name: 'REF', value: params.REF),
+                                    string(name: 'GITHUB_DATA', value: params.GITHUB_DATA)
+                            ])
+
+                    }
+                }
+/*
                 stage('DB runtime 10.4') {
                     when {
                         beforeAgent true
@@ -363,6 +366,7 @@ pipeline {
                         }
                     }
                 } // end of DB runtime 12.2
+*/
 
                 stage('Dummy stage: blue ocean log view') {
                     steps {
@@ -381,16 +385,16 @@ pipeline {
                 }
 
                 if (currentBuild.currentResult == "SUCCESS") {
-                    githubHelper.updateCommitStatus("$BUILD_URL", "Success", GitHubCommitState.SUCCESS)
+                    ///githubHelper.updateCommitStatus("$BUILD_URL", "Success", GitHubCommitState.SUCCESS)
                 } else {
                     // upload log only in case of build failure
                     def guardWords = ["gitlab.*?\\.com", "urm.*?\\.com",
                                       "dbc.*?azuredatabricks\\.net", "adb.*?databricks\\.com"]
                     guardWords.add("nvidia-smi(?s)(.*?)(?=jenkins/version-def.sh)") // hide GPU info
-                    githubHelper.uploadParallelLogs(this, env.JOB_NAME, env.BUILD_NUMBER, null, guardWords)
+                    ///githubHelper.uploadParallelLogs(this, env.JOB_NAME, env.BUILD_NUMBER, null, guardWords)
 
                     if (currentBuild.currentResult != "ABORTED") { // skip ABORTED result to avoid status overwrite
-                        githubHelper.updateCommitStatus("$BUILD_URL", "Fail", GitHubCommitState.FAILURE)
+                        ///githubHelper.updateCommitStatus("$BUILD_URL", "Fail", GitHubCommitState.FAILURE)
                     }
                 }
 
@@ -533,8 +537,9 @@ void checkoutCode(String url, String sha) {
             submoduleCfg     : [],
             userRemoteConfigs: [[
                                     credentialsId: 'github-token',
-                                    url          : url,
-                                    refspec      : '+refs/pull/*/merge:refs/remotes/origin/pr/*']]
+                                    url          : url]]
+//                                    url          : url,
+//                                    refspec      : '+refs/pull/*/merge:refs/remotes/origin/pr/*']]
         ]
     )
 
