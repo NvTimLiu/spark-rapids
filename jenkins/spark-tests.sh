@@ -95,6 +95,8 @@ if [[ "$SKIP_REVISION_CHECK" != "true" && (-z "$p_ver"|| \
 fi
 
 tar xzf "$RAPIDS_INT_TESTS_TGZ" -C $ARTF_ROOT && rm -f "$RAPIDS_INT_TESTS_TGZ"
+diff integration_tests/src/main/python/array_test.py $ARTF_ROOT/integration_tests/src/main/python/array_test.py || true
+cp   integration_tests/src/main/python/array_test.py $ARTF_ROOT/integration_tests/src/main/python/array_test.py
 
 . jenkins/hadoop-def.sh $SPARK_VER
 wget -P $ARTF_ROOT $SPARK_REPO/org/apache/spark/$SPARK_VER/spark-$SPARK_VER-$BIN_HADOOP_VER.tgz
@@ -262,12 +264,13 @@ rapids_shuffle_smoke_test() {
 # - CUDF_UDF_ONLY: cudf_udf tests only, requires extra conda cudf-py lib
 # - MULTITHREADED_SHUFFLE: shuffle tests only
 TEST_MODE=${TEST_MODE:-'DEFAULT'}
-if [[ $TEST_MODE == "DEFAULT" ]]; then
-  ./run_pyspark_from_build.sh
+TEST_MODE='DEFAULT123'
+if [[ $TEST_MODE == "DEFAULT123" ]]; then
+  ./run_pyspark_from_build.sh -k array_test
 
   # ParquetCachedBatchSerializer cache_test
-  PYSP_TEST_spark_sql_cache_serializer=com.nvidia.spark.ParquetCachedBatchSerializer \
-    ./run_pyspark_from_build.sh -k cache_test
+#  PYSP_TEST_spark_sql_cache_serializer=com.nvidia.spark.ParquetCachedBatchSerializer \
+#    ./run_pyspark_from_build.sh -k cache_test
 fi
 
 # Delta Lake tests

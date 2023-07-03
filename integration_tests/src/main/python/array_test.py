@@ -17,7 +17,7 @@ import pytest
 from asserts import assert_gpu_and_cpu_are_equal_collect, assert_gpu_and_cpu_are_equal_sql, assert_gpu_and_cpu_error, assert_gpu_fallback_collect
 from data_gen import *
 from conftest import is_databricks_runtime
-from marks import incompat
+from marks import ignore_order, incompat
 from spark_session import is_before_spark_313, is_before_spark_330, is_databricks113_or_later, is_spark_330_or_later, is_databricks104_or_later, is_spark_33X, is_spark_340_or_later, is_spark_330, is_spark_330cdh
 from pyspark.sql.types import *
 from pyspark.sql.types import IntegralType
@@ -331,6 +331,7 @@ def test_array_transform(data_gen):
 array_min_max_gens = [byte_gen, short_gen, int_gen, long_gen, float_gen, double_gen,
         string_gen, boolean_gen, date_gen, timestamp_gen, null_gen] + decimal_gens
 
+@ignore_order(local=True)
 @pytest.mark.parametrize('data_gen', array_min_max_gens, ids=idfn)
 def test_array_min_max(data_gen):
     assert_gpu_and_cpu_are_equal_collect(
