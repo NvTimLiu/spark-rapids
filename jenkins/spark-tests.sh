@@ -96,7 +96,7 @@ fi
 
 tar xzf "$RAPIDS_INT_TESTS_TGZ" -C $ARTF_ROOT && rm -f "$RAPIDS_INT_TESTS_TGZ"
 diff integration_tests/src/main/python/array_test.py $ARTF_ROOT/integration_tests/src/main/python/array_test.py || true
-cp   integration_tests/src/main/python/array_test.py $ARTF_ROOT/integration_tests/src/main/python/array_test.py
+#cp   integration_tests/src/main/python/array_test.py $ARTF_ROOT/integration_tests/src/main/python/array_test.py
 
 . jenkins/hadoop-def.sh $SPARK_VER
 wget -P $ARTF_ROOT $SPARK_REPO/org/apache/spark/$SPARK_VER/spark-$SPARK_VER-$BIN_HADOOP_VER.tgz
