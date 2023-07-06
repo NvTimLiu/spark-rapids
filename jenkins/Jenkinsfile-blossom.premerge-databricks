@@ -175,8 +175,18 @@ void databricksBuild() {
                 container('cpu') {
                     try {
                         withCredentials([file(credentialsId: 'SPARK_DATABRICKS_PRIVKEY', variable: 'DATABRICKS_PRIVKEY')]) {
-                            def TEST_PARAMS = " -w $DATABRICKS_HOST -t $DATABRICKS_TOKEN -c $CLUSTER_ID" +
-                                " -p $DATABRICKS_PRIVKEY -l ./jenkins/databricks/test.sh -v $BASE_SPARK_VERSION -d /home/ubuntu/test.sh"
+                            def commonParams = " -w $DATABRICKS_HOST -t $DATABRICKS_TOKEN -c $CLUSTER_ID -p $DATABRICKS_PRIVKEY -v $BASE_SPARK_VERSION"
+
+                            def SETUP_PARAMS = commonParams +
+                                " -p $DATABRICKS_PRIVKEY -l ./jenkins/databricks/setup.sh -d /home/ubuntu/spark-rapids/jenkins/databricks/setup.sh"
+                            sh "python3 ./jenkins/databricks/run-tests.py $SETUP_PARAMS"
+
+                            def VARS_PARAMS= commonParams +
+                                " -p $DATABRICKS_PRIVKEY -l ./jenkins/databricks/common-vars.sh -d /home/ubuntu/spark-rapids/jenkins/databricks/common-vars.sh"
+                            sh "python3 ./jenkins/databricks/run-scp.py $VARS_PARAMS"
+
+                            def TEST_PARAMS = commonParams +
+                                " -p $DATABRICKS_PRIVKEY -l ./jenkins/databricks/test.sh -d /home/ubuntu/spark-rapids/jenkins/databricks/test.sh"
                             if (params.SPARK_CONF) {
                                 TEST_PARAMS += " -f ${params.SPARK_CONF}"
                             }

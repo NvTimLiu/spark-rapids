@@ -21,6 +21,7 @@ token = ''
 private_key_file = "~/.ssh/id_rsa"
 local_script = 'build.sh'
 script_dest = '/home/ubuntu/build.sh'
+upload = True
 source_tgz = 'spark-rapids-ci.tgz'
 tgz_dest = '/home/ubuntu/spark-rapids-ci.tgz'
 base_spark_pom_version = '3.2.1'
@@ -42,6 +43,7 @@ def usage():
           ' -p <privatekeyfile>'
           ' -l <localscript>'
           ' -d <scriptdestination>'
+          ' -u <upload>'
           ' -z <sparktgz>'
           ' -v <basesparkpomversion>'
           ' -b <mvnoptions>'
@@ -52,13 +54,14 @@ def usage():
 
 
 try:
-    opts, script_args = getopt.getopt(sys.argv[1:], 'hw:t:c:p:l:d:z:m:v:b:j:f:i:',
+    opts, script_args = getopt.getopt(sys.argv[1:], 'hw:t:c:p:l:d:u:z:m:v:b:j:f:i:',
                                       ['workspace=',
                                        'token=',
                                        'clusterid=',
                                        'private=',
                                        'localscript=',
                                        'dest=',
+                                       'upload=',
                                        'sparktgz=',
                                        'basesparkpomversion=',
                                        'mvnoptions=',
@@ -85,6 +88,8 @@ for opt, arg in opts:
         local_script = arg
     elif opt in ('-d', '--dest'):
         script_dest = arg
+    elif opt in ('-u', '--upload'):
+        upload = arg
     elif opt in ('-z', '--sparktgz'):
         source_tgz = arg
     elif opt in ('-v', '--basesparkpomversion'):
@@ -103,6 +108,7 @@ print('-c is ' + clusterid)
 print('-p is ' + private_key_file)
 print('-l is ' + local_script)
 print('-d is ' + script_dest)
+print('-u is ' + upload)
 print('script_args is ' + ' '.join(script_args))
 print('-z is ' + source_tgz)
 print('-v is ' + base_spark_pom_version)
