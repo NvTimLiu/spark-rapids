@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+print('test premerge')
 /**
  *
  * Jenkinsfile for building rapids-plugin on blossom
