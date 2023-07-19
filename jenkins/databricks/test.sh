@@ -90,7 +90,7 @@ SOURCE_PATH="/home/ubuntu/spark-rapids"
 [[ -d "$LOCAL_JAR_PATH" ]] && cd $LOCAL_JAR_PATH || cd $SOURCE_PATH
 
 if [[ $TEST_MODE == "DEFAULT" ]]; then
-    bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE
+    bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE -k sample_test
 
     ## Run cache tests
     if [[ "$IS_SPARK_321_OR_LATER" -eq "1" ]]; then

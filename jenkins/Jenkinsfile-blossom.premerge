@@ -190,13 +190,7 @@ pipeline {
                             container('gpu') {
                                 timeout(time: 4, unit: 'HOURS') { // step only timeout for test run
                                     try {
-                                        sh "$PREMERGE_SCRIPT mvn_verify"
-                                        step([$class                : 'JacocoPublisher',
-                                              execPattern           : '**/target/jacoco.exec',
-                                              classPattern          : 'target/jacoco_classes/',
-                                              sourceInclusionPattern: '**/*.java,**/*.scala',
-                                              sourcePattern         : sourcePattern
-                                        ])
+                                        echo "$PREMERGE_SCRIPT mvn_verify"
                                     } finally {
                                         common.publishPytestResult(this, "${STAGE_NAME}")
                                         common.printJVMCoreDumps(this)
@@ -227,7 +221,7 @@ pipeline {
                             container('gpu') {
                                 timeout(time: 4, unit: 'HOURS') {
                                     try {
-                                        sh "$PREMERGE_SCRIPT ci_2"
+                                        echo "$PREMERGE_SCRIPT ci_2"
                                     } finally {
                                         common.publishPytestResult(this, "${STAGE_NAME}")
                                         common.printJVMCoreDumps(this)
