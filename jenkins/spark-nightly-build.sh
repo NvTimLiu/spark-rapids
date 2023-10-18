@@ -17,8 +17,14 @@
 
 set -ex
 
+if [ $SCALA_BINARY_VER == "2.13" ]; then
+    cp -r jenkins scala2.13/
+    cd scala2.13
+fi
+
 . jenkins/version-def.sh
 
+export WORKSPACE=`pwd`
 ## export 'M2DIR' so that shims can get the correct Spark dependency info
 export M2DIR=${M2DIR:-"$WORKSPACE/.m2"}
 

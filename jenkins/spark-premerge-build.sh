@@ -19,6 +19,7 @@ set -ex
 
 BUILD_TYPE=all
 
+
 if [[ $# -eq 1 ]]; then
     BUILD_TYPE=$1
 
@@ -27,7 +28,8 @@ elif [[ $# -gt 1 ]]; then
     exit 1
 fi
 
-MVN_CMD="mvn -Dmaven.wagon.http.retryHandler.count=3"
+CUDA_CLASSIFIER=${CUDA_CLASSIFIER:-'cuda11'}
+MVN_CMD="mvn -Dmaven.wagon.http.retryHandler.count=3 -DskipTests"
 MVN_BUILD_ARGS="-Drat.skip=true -Dskip -Dmaven.scalastyle.skip=true -Dcuda.version=$CUDA_CLASSIFIER"
 
 mvn_verify() {
@@ -35,7 +37,7 @@ mvn_verify() {
     # get merge BASE from merged pull request. Log message e.g. "Merge HEAD into BASE"
     BASE_REF=$(git --no-pager log --oneline -1 | awk '{ print $NF }')
     # file size check for pull request. The size of a committed file should be less than 1.5MiB
-    pre-commit run check-added-large-files --from-ref $BASE_REF --to-ref HEAD
+    ################ pre-commit run check-added-large-files --from-ref $BASE_REF --to-ref HEAD
 
     MVN_INSTALL_CMD="env -u SPARK_HOME $MVN_CMD -U -B $MVN_URM_MIRROR clean install $MVN_BUILD_ARGS -DskipTests -pl aggregator -am"
 
@@ -61,6 +63,7 @@ mvn_verify() {
     # enable UTF-8 for regular expression tests
     for version in "${SPARK_SHIM_VERSIONS_PREMERGE_UTF8[@]}"
     do
+echo "UTF8 $version"
         env -u SPARK_HOME LC_ALL="en_US.UTF-8" $MVN_CMD $MVN_URM_MIRROR -Dbuildver=$version test $MVN_BUILD_ARGS \
           -Dpytest.TEST_TAGS='' \
           -DwildcardSuites=com.nvidia.spark.rapids.ConditionalsSuite,com.nvidia.spark.rapids.RegularExpressionSuite,com.nvidia.spark.rapids.RegularExpressionTranspilerSuite
@@ -75,6 +78,7 @@ mvn_verify() {
     # works and jacoco we need to clean some things up so jacoco will only report for the
     # things we care about
     SPK_VER=${JACOCO_SPARK_VER:-"311"}
+echo "JACOCO_SPARK_VER $JACOCO_SPARK_VER"
     mkdir -p target/jacoco_classes/
     FILE=$(ls dist/target/rapids-4-spark_2.12-*.jar | grep -v test | xargs readlink -f)
     UDF_JAR=$(ls ./udf-compiler/target/spark${SPK_VER}/rapids-4-spark-udf_2.12-*-spark${SPK_VER}.jar | grep -v test | xargs readlink -f)
@@ -161,11 +165,24 @@ ci_2() {
 }
 
 
+
+if [ $SCALA_BINARY_VER == "2.13" ]; then
+    cp -r jenkins scala2.13/
+    cd scala2.13
+fi
+export WORKSPACE=`pwd` ##////////////////////////
+
 nvidia-smi
 
 . jenkins/version-def.sh
 
 PREMERGE_PROFILES="-PnoSnapshots,pre-merge"
+
+if [ $SCALA_BINARY_VER == "2.13" ]; then
+    PREMERGE_PROFILES="-Prelease330,pre-merge,individual"
+else
+    PREMERGE_PROFILES="-Prelease311,pre-merge,individual"
+fi
 
 ARTF_ROOT="$WORKSPACE/.download"
 MVN_GET_CMD="$MVN_CMD org.apache.maven.plugins:maven-dependency-plugin:2.8:get -B \

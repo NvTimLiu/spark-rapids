@@ -729,13 +729,22 @@
         <premergeUT1.buildvers>
             320
         </premergeUT1.buildvers>
+        <premergeUT1Scala213.buildvers>
+            340
+        </premergeUT1Scala213.buildvers>
         <premergeUT2.buildvers>
             330,
             340
         </premergeUT2.buildvers>
+        <premergeUT2Scala213.buildvers>
+            350
+        </premergeUT2Scala213.buildvers>
         <premergeUTF8.buildvers>
             320
         </premergeUTF8.buildvers>
+        <premergeUTF8Scala213.buildvers>
+            340
+        </premergeUTF8Scala213.buildvers>
         <jdk11.buildvers>
             312,
             321,

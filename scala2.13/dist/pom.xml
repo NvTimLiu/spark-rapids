@@ -73,6 +73,14 @@
             </properties>
         </profile>
         <profile>
+            <id>premergeUT1Scala213</id>
+            <properties>
+                <included_buildvers>
+                    ${premergeUT1Scala213.buildvers}
+                </included_buildvers>
+            </properties>
+        </profile>
+        <profile>
             <id>premergeUT2</id>
             <properties>
                 <included_buildvers>
@@ -81,10 +89,26 @@
             </properties>
         </profile>
         <profile>
+            <id>premergeUT2Scala213</id>
+            <properties>
+                <included_buildvers>
+                    ${premergeUT2Scala213.buildvers}
+                </included_buildvers>
+            </properties>
+        </profile>
+        <profile>
             <id>premergeUTF8</id>
             <properties>
                 <included_buildvers>
                     ${premergeUTF8.buildvers}
+                </included_buildvers>
+            </properties>
+        </profile>
+        <profile>
+            <id>premergeUTF8Scala213</id>
+            <properties>
+                <included_buildvers>
+                    ${premergeUTF8Scala213.buildvers}
                 </included_buildvers>
             </properties>
         </profile>
@@ -153,6 +177,14 @@
             <properties>
                 <included_buildvers>
                     ${snapshot.buildvers}
+                </included_buildvers>
+            </properties>
+        </profile>
+        <profile>
+            <id>snapshotOnlyScala213</id>
+            <properties>
+                <included_buildvers>
+                    ${snapshotScala213.buildvers}
                 </included_buildvers>
             </properties>
         </profile>
