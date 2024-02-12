@@ -36,6 +36,8 @@ ARG UCX_VER
 ARG ARCH=arm64
 ARG UCX_ARCH=aarch64
 
+RUN rm -rf /etc/apt/sources.list.d/cuda.list
+
 # Install jdk-8, jdk-11, maven, docker image
 RUN apt-get update -y && \
     apt-get install -y software-properties-common rsync
