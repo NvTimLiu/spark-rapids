@@ -67,7 +67,7 @@ import org.apache.spark.sql.rapids.catalyst.expressions.GpuRand
 import org.apache.spark.sql.rapids.execution._
 import org.apache.spark.sql.rapids.execution.python._
 import org.apache.spark.sql.rapids.execution.python.GpuFlatMapGroupsInPandasExecMeta
-import org.apache.spark.sql.rapids.shims.{GpuAscii, GpuTimeAdd}
+import org.apache.spark.sql.rapids.shims.{GpuAscii, GpuMapInPandasExecMeta, GpuTimeAdd}
 import org.apache.spark.sql.rapids.zorder.ZOrderRules
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
@@ -3646,10 +3646,7 @@ object GpuOverrides extends Logging {
       ExprChecks.projectOnly(
         TypeSig.STRING, TypeSig.STRING, Seq(ParamCheck("json", TypeSig.STRING, TypeSig.STRING),
           ParamCheck("path", TypeSig.lit(TypeEnum.STRING), TypeSig.STRING))),
-      (a, conf, p, r) => new BinaryExprMeta[GetJsonObject](a, conf, p, r) {
-        override def convertToGpu(lhs: Expression, rhs: Expression): GpuExpression =
-          GpuGetJsonObject(lhs, rhs)
-      }
+      (a, conf, p, r) => new GpuGetJsonObjectMeta(a, conf, p, r)
     ).disabledByDefault("escape sequences are not processed correctly, the input is not " +
         "validated, and the output is not normalized the same as Spark"),
     expr[JsonToStructs](
@@ -3663,10 +3660,23 @@ object GpuOverrides extends Logging {
         (TypeSig.STRUCT + TypeSig.MAP + TypeSig.ARRAY).nested(TypeSig.all),
         Seq(ParamCheck("jsonStr", TypeSig.STRING, TypeSig.STRING))),
       (a, conf, p, r) => new UnaryExprMeta[JsonToStructs](a, conf, p, r) {
+        def hasDuplicateFieldNames(dt: DataType): Boolean =
+          TrampolineUtil.dataTypeExistsRecursively(dt, {
+            case st: StructType =>
+              val fn = st.fieldNames
+              fn.length != fn.distinct.length
+            case _ => false
+          })
+
         override def tagExprForGpu(): Unit = {
           a.schema match {
             case MapType(_: StringType, _: StringType, _) => ()
-            case _: StructType => ()
+            case st: StructType =>
+              if (hasDuplicateFieldNames(st)) {
+                willNotWorkOnGpu("from_json on GPU does not support duplicate field " +
+                    "names in a struct")
+              }
+              ()
             case _ =>
               willNotWorkOnGpu("from_json on GPU only supports MapType<StringType, StringType> " +
                 "or StructType schema")
@@ -3733,7 +3743,8 @@ object GpuOverrides extends Logging {
         }
         override def convertToGpu(): GpuExpression = GpuJsonTuple(childExprs.map(_.convertToGpu()))
       }
-    ),
+    ).disabledByDefault("JsonTuple on the GPU does not support all of the normalization " +
+        "that the CPU supports."),
     expr[org.apache.spark.sql.execution.ScalarSubquery](
       "Subquery that will return only one row and one column",
       ExprChecks.projectOnly(
