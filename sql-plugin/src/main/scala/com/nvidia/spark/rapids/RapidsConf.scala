@@ -114,7 +114,7 @@ object ConfHelper {
       }
       functionsByClass.update(className, fnSeq :+ s"`$fnCleaned`")
     }
-    functionsByClass.toMap
+    functionsByClass.mapValues(_.sorted).toMap
   }
 }
 
@@ -587,7 +587,7 @@ val GPU_COREDUMP_PIPE_PATTERN = conf("spark.rapids.gpu.coreDump.pipePattern")
       .doc("Enable a chunked reader where possible for reading data that is smaller " +
           "than the typical row group/page limit. Currently this only works for parquet.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val MAX_READER_BATCH_SIZE_BYTES = conf("spark.rapids.sql.reader.batchSizeBytes")
     .doc("Soft limit on the maximum number of bytes the reader reads per batch. " +
@@ -638,7 +638,7 @@ val GPU_COREDUMP_PIPE_PATTERN = conf("spark.rapids.gpu.coreDump.pipePattern")
       "joins. Requires spark.rapids.sql.shuffledHashJoin.optimizeShuffle=true.")
     .internal()
     .booleanConf
-    .createWithDefault(false)
+    .createWithDefault(true)
 
   val STABLE_SORT = conf("spark.rapids.sql.stableSort.enabled")
       .doc("Enable or disable stable sorting. Apache Spark's sorting is typically a stable " +
@@ -752,6 +752,14 @@ val GPU_COREDUMP_PIPE_PATTERN = conf("spark.rapids.gpu.coreDump.pipePattern")
           "the window size squared. The current GPU implementation does not handle this well " +
           "and is disabled by default. If you know that your window size is very small you " +
           "can try to enable it.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val ENABLE_WINDOW_UNBOUNDED_AGG = conf("spark.rapids.sql.window.unboundedAgg.enabled")
+      .doc("This is a temporary internal config to turn on an unbounded to unbounded " +
+          "window optimization that is still a work in progress. It should eventually replace " +
+          "the double pass window exec.")
+      .internal()
       .booleanConf
       .createWithDefault(false)
 
@@ -1092,6 +1100,16 @@ val GPU_COREDUMP_PIPE_PATTERN = conf("spark.rapids.gpu.coreDump.pipePattern")
     .booleanConf
     .createWithDefault(true)
 
+  val ENABLE_EXPAND_PREPROJECT = conf("spark.rapids.sql.expandPreproject.enabled")
+    .doc("When set to false disables the pre-projection for GPU Expand. " +
+      "Pre-projection leverages the tiered projection to evaluate expressions that " +
+      "semantically equal across Expand projection lists before expanding, to avoid " +
+      s"duplicate evaluations. '${ENABLE_TIERED_PROJECT.key}' should also set to true " +
+      "to enable this.")
+    .internal()
+    .booleanConf
+    .createWithDefault(true)
+
   val ENABLE_ORC_FLOAT_TYPES_TO_STRING =
     conf("spark.rapids.sql.format.orc.floatTypesToString.enable")
     .doc("When reading an ORC file, the source data schemas(schemas of ORC file) may differ " +
@@ -1199,9 +1217,10 @@ val GPU_COREDUMP_PIPE_PATTERN = conf("spark.rapids.gpu.coreDump.pipePattern")
     .createWithDefault(true)
 
   val ENABLE_READ_JSON_DECIMALS = conf("spark.rapids.sql.json.read.decimal.enabled")
-    .doc("JSON reading is not 100% compatible when reading decimals.")
+    .doc("When reading a quoted string as a decimal Spark supports reading non-ascii " +
+        "unicode digits, and the RAPIDS Accelerator does not.")
     .booleanConf
-    .createWithDefault(false)
+    .createWithDefault(true)
 
   val ENABLE_READ_JSON_MIXED_TYPES_AS_STRING =
     conf("spark.rapids.sql.json.read.mixedTypesAsString.enabled")
@@ -2149,7 +2168,7 @@ val SHUFFLE_COMPRESSION_LZ4_CHUNK_SIZE = conf("spark.rapids.shuffle.compression.
         |On startup use: `--conf [conf key]=[conf value]`. For example:
         |
         |```
-        |${SPARK_HOME}/bin/spark-shell --jars rapids-4-spark_2.12-24.02.0-cuda11.jar \
+        |${SPARK_HOME}/bin/spark-shell --jars rapids-4-spark_2.12-24.04.0-SNAPSHOT-cuda11.jar \
         |--conf spark.plugins=com.nvidia.spark.SQLPlugin \
         |--conf spark.rapids.sql.concurrentGpuTasks=2
         |```
@@ -2458,6 +2477,8 @@ class RapidsConf(conf: Map[String, String]) extends Logging {
 
   lazy val isWindowCollectSetEnabled: Boolean = get(ENABLE_WINDOW_COLLECT_SET)
 
+  lazy val isWindowUnboundedAggEnabled: Boolean = get(ENABLE_WINDOW_UNBOUNDED_AGG)
+
   lazy val isFloatAggEnabled: Boolean = get(ENABLE_FLOAT_AGG)
 
   lazy val explain: String = get(EXPLAIN)
@@ -2531,6 +2552,8 @@ class RapidsConf(conf: Map[String, String]) extends Logging {
   lazy val isProjectAstEnabled: Boolean = get(ENABLE_PROJECT_AST)
 
   lazy val isTieredProjectEnabled: Boolean = get(ENABLE_TIERED_PROJECT)
+
+  lazy val isExpandPreprojectEnabled: Boolean = get(ENABLE_EXPAND_PREPROJECT)
 
   lazy val multiThreadReadNumThreads: Int = {
     // Use the largest value set among all the options.
