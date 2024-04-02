@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package com.nvidia.spark.rapids;
 
 import ai.rapids.cudf.*;
+import com.nvidia.spark.Retryable;
 import com.nvidia.spark.rapids.shims.GpuTypeShims;
 import org.apache.arrow.memory.ReferenceManager;
 
@@ -234,8 +235,9 @@ public class GpuColumnVector extends GpuColumnVectorBase {
     }
   }
 
-  public static final class GpuColumnarBatchBuilder extends GpuColumnarBatchBuilderBase {
-    private final ai.rapids.cudf.HostColumnVector.ColumnBuilder[] builders;
+  public static final class GpuColumnarBatchBuilder extends GpuColumnarBatchBuilderBase
+      implements Retryable {
+    private final RapidsHostColumnBuilder[] builders;
     private ai.rapids.cudf.HostColumnVector[] hostColumns;
 
     /**
@@ -246,17 +248,18 @@ public class GpuColumnVector extends GpuColumnVectorBase {
     public GpuColumnarBatchBuilder(StructType schema, int rows) {
       fields = schema.fields();
       int len = fields.length;
-      builders = new ai.rapids.cudf.HostColumnVector.ColumnBuilder[len];
+      builders = new RapidsHostColumnBuilder[len];
       boolean success = false;
       try {
         for (int i = 0; i < len; i++) {
           StructField field = fields[i];
-          builders[i] = new HostColumnVector.ColumnBuilder(convertFrom(field.dataType(), field.nullable()), rows);
+          builders[i] =
+              new RapidsHostColumnBuilder(convertFrom(field.dataType(), field.nullable()), rows);
         }
         success = true;
       } finally {
         if (!success) {
-          for (ai.rapids.cudf.HostColumnVector.ColumnBuilder b: builders) {
+          for (RapidsHostColumnBuilder b: builders) {
             if (b != null) {
               b.close();
             }
@@ -265,6 +268,45 @@ public class GpuColumnVector extends GpuColumnVectorBase {
       }
     }
 
+    /**
+     * A collection of builders for building up columnar data.
+     * @param schema the schema of the batch.
+     * @param rows the maximum number of rows in this batch.
+     * @param spillableHostBuf single spillable host buffer to slice up among columns
+     * @param bufferSizes an array of sizes for each column
+     */
+    public GpuColumnarBatchBuilder(StructType schema, int rows,
+        SpillableHostBuffer spillableHostBuf, long[] bufferSizes) {
+      fields = schema.fields();
+      int len = fields.length;
+      builders = new RapidsHostColumnBuilder[len];
+      boolean success = false;
+      try (SpillableHostBuffer sBuf = spillableHostBuf;
+           HostMemoryBuffer hBuf =
+               RmmRapidsRetryIterator.withRetryNoSplit(() -> sBuf.getHostBuffer());) {
+        long offset = 0;
+        for (int i = 0; i < len; i++) {
+          StructField field = fields[i];
+          try (HostMemoryBuffer columnBuffer = hBuf.slice(offset, bufferSizes[i]);) {
+            offset += bufferSizes[i];
+            builders[i] =
+                new RapidsHostColumnBuilder(convertFrom(field.dataType(), field.nullable()), rows)
+                    .preAllocateBuffers(columnBuffer, 0);
+          }
+        }
+        success = true;
+      } finally {
+        if (!success) {
+          for (RapidsHostColumnBuilder b: builders) {
+            if (b != null) {
+              b.close();
+            }
+          }
+        }
+      }
+    }
+
+
     @Override
     public void copyColumnar(ColumnVector cv, int colNum, int rows) {
       if (builders.length > 0) {
@@ -272,7 +314,7 @@ public class GpuColumnVector extends GpuColumnVectorBase {
       }
     }
 
-    public ai.rapids.cudf.HostColumnVector.ColumnBuilder builder(int i) {
+    public RapidsHostColumnBuilder builder(int i) {
       return builders[i];
     }
 
@@ -320,7 +362,7 @@ public class GpuColumnVector extends GpuColumnVectorBase {
     @Override
     public void close() {
       try {
-        for (ai.rapids.cudf.HostColumnVector.ColumnBuilder b: builders) {
+        for (RapidsHostColumnBuilder b: builders) {
           if (b != null) {
             b.close();
           }
@@ -333,6 +375,32 @@ public class GpuColumnVector extends GpuColumnVectorBase {
             }
           }
           hostColumns = null;
+        }
+      }
+    }
+
+    @Override
+    public void checkpoint() {
+      for (RapidsHostColumnBuilder b: builders) {
+        if (b != null) {
+          b.checkpoint();
+        }
+      }
+    }
+
+    @Override
+    public void restore() {
+      for (RapidsHostColumnBuilder b: builders) {
+        if (b != null) {
+          b.restore();
+        }
+      }
+    }
+
+    public void setAllowGrowth(boolean enable) {
+      for (RapidsHostColumnBuilder b: builders) {
+        if (b != null) {
+          b.setAllowGrowth(enable);
         }
       }
     }

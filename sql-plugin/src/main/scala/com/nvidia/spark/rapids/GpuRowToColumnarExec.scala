@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,10 @@
 package com.nvidia.spark.rapids
 
 import ai.rapids.cudf.{NvtxColor, NvtxRange}
+import com.nvidia.spark.rapids.Arm.closeOnExcept
 import com.nvidia.spark.rapids.Arm.withResource
 import com.nvidia.spark.rapids.GpuColumnVector.GpuColumnarBatchBuilder
+import com.nvidia.spark.rapids.RmmRapidsRetryIterator.{splitTargetSizeInHalfCpu, withRetry}
 import com.nvidia.spark.rapids.shims.{GpuTypeShims, ShimUnaryExecNode}
 
 import org.apache.spark.TaskContext
@@ -81,7 +83,7 @@ private[rapids] object GpuRowToColumnConverter {
     /** Append row value to the column builder and return the number of data bytes written */
     def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double
+      builder: RapidsHostColumnBuilder): Double
 
     /**
      * This is here for structs.  When you append a null to a struct the size is not known
@@ -151,7 +153,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object NullConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
         column: Int,
-        builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+        builder: RapidsHostColumnBuilder): Double = {
       builder.appendNull()
       1 + VALIDITY
     }
@@ -162,7 +164,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object BooleanConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       if (row.isNullAt(column)) {
         builder.appendNull()
       } else {
@@ -177,7 +179,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object NotNullBooleanConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       builder.append(if (row.getBoolean(column)) 1.toByte else 0.toByte)
       1
     }
@@ -188,7 +190,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object ByteConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       if (row.isNullAt(column)) {
         builder.appendNull()
       } else {
@@ -203,7 +205,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object NotNullByteConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       builder.append(row.getByte(column))
       1
     }
@@ -214,7 +216,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object ShortConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       if (row.isNullAt(column)) {
         builder.appendNull()
       } else {
@@ -229,7 +231,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object NotNullShortConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       builder.append(row.getShort(column))
       2
     }
@@ -240,7 +242,7 @@ private[rapids] object GpuRowToColumnConverter {
   private[rapids] object IntConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       if (row.isNullAt(column)) {
         builder.appendNull()
       } else {
@@ -255,7 +257,7 @@ private[rapids] object GpuRowToColumnConverter {
   private[rapids] object NotNullIntConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       builder.append(row.getInt(column))
       4
     }
@@ -266,7 +268,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object FloatConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       if (row.isNullAt(column)) {
         builder.appendNull()
       } else {
@@ -281,7 +283,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object NotNullFloatConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       builder.append(row.getFloat(column))
       4
     }
@@ -292,7 +294,7 @@ private[rapids] object GpuRowToColumnConverter {
   private[rapids] object LongConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       if (row.isNullAt(column)) {
         builder.appendNull()
       } else {
@@ -307,7 +309,7 @@ private[rapids] object GpuRowToColumnConverter {
   private[rapids] object NotNullLongConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       builder.append(row.getLong(column))
       8
     }
@@ -318,7 +320,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object DoubleConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       if (row.isNullAt(column)) {
         builder.appendNull()
       } else {
@@ -333,7 +335,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object NotNullDoubleConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       builder.append(row.getDouble(column))
       8
     }
@@ -343,7 +345,7 @@ private[rapids] object GpuRowToColumnConverter {
 
   private object StringConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
-      column: Int, builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double =
+      column: Int, builder: RapidsHostColumnBuilder): Double =
       if (row.isNullAt(column)) {
         builder.appendNull()
         VALIDITY_N_OFFSET
@@ -357,7 +359,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object NotNullStringConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       val bytes = row.getUTF8String(column).getBytes
       builder.appendUTF8String(bytes)
       bytes.length + OFFSET
@@ -369,7 +371,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object BinaryConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
         column: Int,
-        builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double =
+        builder: RapidsHostColumnBuilder): Double =
       if (row.isNullAt(column)) {
         builder.appendNull()
         VALIDITY_N_OFFSET
@@ -383,7 +385,7 @@ private[rapids] object GpuRowToColumnConverter {
   private object NotNullBinaryConverter extends TypeConverter {
     override def append(row: SpecializedGetters,
         column: Int,
-        builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+        builder: RapidsHostColumnBuilder): Double = {
       val bytes = row.getBinary(column)
       builder.appendByteList(bytes)
       bytes.length + OFFSET
@@ -397,7 +399,7 @@ private[rapids] object GpuRowToColumnConverter {
       valueConverter: TypeConverter,
       row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder) : Double = {
+      builder: RapidsHostColumnBuilder) : Double = {
     var ret = 0.0
     val m = row.getMap(column)
     val numElements = m.numElements()
@@ -419,7 +421,7 @@ private[rapids] object GpuRowToColumnConverter {
       keyConverter: TypeConverter,
       valueConverter: TypeConverter) extends TypeConverter {
     override def append(row: SpecializedGetters,
-        column: Int, builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+        column: Int, builder: RapidsHostColumnBuilder): Double = {
       if (row.isNullAt(column)) {
         builder.appendNull()
         VALIDITY_N_OFFSET
@@ -435,7 +437,7 @@ private[rapids] object GpuRowToColumnConverter {
       keyConverter: TypeConverter,
       valueConverter: TypeConverter) extends TypeConverter {
     override def append(row: SpecializedGetters,
-      column: Int, builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double =
+      column: Int, builder: RapidsHostColumnBuilder): Double =
       mapConvert(keyConverter, valueConverter, row, column, builder)
 
     override def getNullSize: Double = OFFSET + VALIDITY
@@ -461,7 +463,7 @@ private[rapids] object GpuRowToColumnConverter {
       childConverter: TypeConverter,
       row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder) : Double = {
+      builder: RapidsHostColumnBuilder) : Double = {
     var ret = 0.0
     val values = row.getArray(column)
     val numElements = values.numElements()
@@ -476,7 +478,7 @@ private[rapids] object GpuRowToColumnConverter {
   private case class ArrayConverter(childConverter: TypeConverter)
       extends TypeConverter {
     override def append(row: SpecializedGetters,
-        column: Int, builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+        column: Int, builder: RapidsHostColumnBuilder): Double = {
       if (row.isNullAt(column)) {
         builder.appendNull()
         VALIDITY_N_OFFSET
@@ -491,7 +493,7 @@ private[rapids] object GpuRowToColumnConverter {
   private case class NotNullArrayConverter(childConverter: TypeConverter)
       extends TypeConverter {
     override def append(row: SpecializedGetters,
-        column: Int, builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+        column: Int, builder: RapidsHostColumnBuilder): Double = {
       arrayConvert(childConverter, row, column, builder)
     }
 
@@ -502,7 +504,7 @@ private[rapids] object GpuRowToColumnConverter {
       childConverters: Array[TypeConverter],
       row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder) : Double = {
+      builder: RapidsHostColumnBuilder) : Double = {
     var ret = 0.0
     val struct = row.getStruct(column, childConverters.length)
     for (i <- childConverters.indices) {
@@ -516,7 +518,7 @@ private[rapids] object GpuRowToColumnConverter {
       childConverters: Array[TypeConverter]) extends TypeConverter {
     override def append(row: SpecializedGetters,
         column: Int,
-        builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+        builder: RapidsHostColumnBuilder): Double = {
       if (row.isNullAt(column)) {
         builder.appendNull()
         childConverters.map(_.getNullSize).sum + VALIDITY
@@ -533,7 +535,7 @@ private[rapids] object GpuRowToColumnConverter {
       childConverters: Array[TypeConverter]) extends TypeConverter {
     override def append(row: SpecializedGetters,
         column: Int,
-        builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+        builder: RapidsHostColumnBuilder): Double = {
       structConvert(childConverters, row, column, builder)
     }
 
@@ -551,7 +553,7 @@ private[rapids] object GpuRowToColumnConverter {
     override def append(
       row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       if (row.isNullAt(column)) {
         builder.appendNull()
       } else {
@@ -573,7 +575,7 @@ private[rapids] object GpuRowToColumnConverter {
     override def append(
       row: SpecializedGetters,
       column: Int,
-      builder: ai.rapids.cudf.HostColumnVector.ColumnBuilder): Double = {
+      builder: RapidsHostColumnBuilder): Double = {
       val bigDecimal = row.getDecimal(column, precision, scale).toJavaBigDecimal
       builder.append(bigDecimal)
       appendedSize
@@ -600,14 +602,30 @@ class RowToColumnarIterator(
   private var targetRows = 0
   private var totalOutputBytes: Long = 0
   private var totalOutputRows: Long = 0
+  private[this] val pending = new scala.collection.mutable.Queue[InternalRow]()
 
-  override def hasNext: Boolean = rowIter.hasNext
+  override def hasNext: Boolean =  pending.nonEmpty || rowIter.hasNext
 
   override def next(): ColumnarBatch = {
-    if (!rowIter.hasNext) {
+    if (!hasNext) {
       throw new NoSuchElementException
     }
     buildBatch()
+  }
+
+  // Attempt to allocate a single host buffer for the full batch of columns, retrying
+  // with fewer rows if necessary.  Then make it spillable.
+  // Returns of tuple of (actual rows, per-column-sizes, SpillableHostBuffer).
+  private def allocBufWithRetry(rows : Int) : (Int, Array[Long], SpillableHostBuffer) = {
+    val  targetRowCount = AutoCloseableTargetSize(rows, 1)
+    withRetry(targetRowCount, splitTargetSizeInHalfCpu) { attempt =>
+      val perColBytes = GpuBatchUtils.estimatePerColumnGpuMemory(localSchema, attempt.targetSize)
+      closeOnExcept(HostAlloc.alloc(perColBytes.sum, true)) { hBuf =>
+        (attempt.targetSize.toInt, perColBytes,
+            SpillableHostBuffer(hBuf, hBuf.getLength, SpillPriorities.ACTIVE_ON_DECK_PRIORITY,
+              RapidsBufferCatalog.singleton))
+      }
+    }.next()
   }
 
   private def buildBatch(): ColumnarBatch = {
@@ -625,21 +643,50 @@ class RowToColumnarIterator(
           targetRows = GpuBatchUtils.estimateRowCount(targetSizeBytes, sampleBytes, sampleRows)
         }
       }
+      val (actualRows, perColumnBytes, sBuf) = allocBufWithRetry(targetRows)
+      targetRows = actualRows
 
-      withResource(new GpuColumnarBatchBuilder(localSchema, targetRows)) { builders =>
+      withResource(new GpuColumnarBatchBuilder(localSchema, targetRows, sBuf,
+        perColumnBytes)) { builders =>
         var rowCount = 0
         // Double because validity can be < 1 byte, and this is just an estimate anyways
         var byteCount: Double = 0
+        var overWrite = false
         // read at least one row
-        while (rowIter.hasNext &&
-            (rowCount == 0 || rowCount < targetRows && byteCount < targetSizeBytes)) {
-          val row = rowIter.next()
-          byteCount += converters.convert(row, builders)
-          rowCount += 1
+        while (!overWrite && hasNext && (rowCount == 0 ||
+            ((rowCount < targetRows) && (byteCount < targetSizeBytes)))) {
+          val row = if (pending.nonEmpty) {
+            pending.dequeue()
+          } else {
+            rowIter.next()
+          }
+          try {
+            builders.checkpoint()
+            val rowBytes = converters.convert(row, builders)
+            byteCount += rowBytes
+            rowCount += 1
+          } catch {
+            case _ : RapidsHostColumnOverflow => {
+              // We overwrote the pre-allocated buffers.  Restore state and stop here if we can.
+              builders.restore()
+              // If this happens on the first row, we aren't going to succeed.  If we require
+              // a single batch, it will fail below.
+              // For now we will just retry these cases with growth re-enabled - we may run out
+              // of memory though.
+              if ((rowCount == 0) || (localGoal.isInstanceOf[RequireSingleBatchLike])) {
+                builders.setAllowGrowth(true)
+              } else {
+                // We wrote some rows, so we can go on to building the batch
+                overWrite = true
+              }
+              pending.enqueue(row)  // we need to try this row again
+            }
+            case e: Throwable => throw e
+          }
         }
 
         // enforce RequireSingleBatch limit
-        if (rowIter.hasNext && localGoal.isInstanceOf[RequireSingleBatchLike]) {
+        if (hasNext && localGoal.isInstanceOf[RequireSingleBatchLike]) {
           throw new IllegalStateException("A single batch is required for this operation." +
               " Please try increasing your partition count.")
         }
