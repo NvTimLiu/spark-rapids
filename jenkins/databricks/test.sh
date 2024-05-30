@@ -98,7 +98,7 @@ if [[ $TEST_MODE == "DEFAULT" && $IT_PART == "part1" ]]; then
 fi
 
 ## Run tests with jars building from the spark-rapids source code
-if [ "$(pwd)" == "$SOURCE_PATH" && $IT_PART == "part2" ]; then
+if [[ "$(pwd)" == "$SOURCE_PATH" && $IT_PART == "part2" ]]; then
     ## Run cache tests
     if [[ "$IS_SPARK_321_OR_LATER" -eq "123" ]]; then
         PYSP_TEST_spark_sql_cache_serializer=${PCBS_CONF} \
