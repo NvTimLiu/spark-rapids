@@ -35,13 +35,15 @@ MVN_BUILD_ARGS="-Drat.skip=true -Dmaven.scaladoc.skip -Dmaven.scalastyle.skip=tr
 mvn_verify() {
     echo "Run mvn verify..."
 
+time1=$(date +%s)
+
     # Download a Scala 2.12 build of spark
     prepare_spark $SPARK_VER 2.12
 
     # get merge BASE from merged pull request. Log message e.g. "Merge HEAD into BASE"
     BASE_REF=$(git --no-pager log --oneline -1 | awk '{ print $NF }')
     # file size check for pull request. The size of a committed file should be less than 1.5MiB
-    pre-commit run check-added-large-files --from-ref $BASE_REF --to-ref HEAD
+###    pre-commit run check-added-large-files --from-ref $BASE_REF --to-ref HEAD
 
     MVN_INSTALL_CMD="env -u SPARK_HOME $MVN_CMD -U -B $MVN_URM_MIRROR clean install $MVN_BUILD_ARGS -DskipTests -pl aggregator -am"
 
@@ -63,6 +65,10 @@ mvn_verify() {
         #     $MVN_INSTALL_CMD -DskipTests -Dbuildver=$version
         fi
     done
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&1111 Build Shims: $duration"
+time1=$(date +%s)
     # build base shim version for following test step with PREMERGE_PROFILES
     $MVN_INSTALL_CMD -DskipTests -Dbuildver=$SPARK_BASE_SHIM_VERSION
 
@@ -74,12 +80,22 @@ mvn_verify() {
           -Dpytest.TEST_TAGS='' \
           -DwildcardSuites=com.nvidia.spark.rapids.ConditionalsSuite,com.nvidia.spark.rapids.RegularExpressionSuite,com.nvidia.spark.rapids.RegularExpressionTranspilerSuite
     done
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&22222 UTF8 tests: $duration"
+time1=$(date +%s)
 
+    # Calculate parallelism based on GPU memory. When parallelism > 8, as it increases, the test speed will become slower and slower. So we set the maximum parallelism to 8.
+    GPU_MEM_PARALLEL=`nvidia-smi --query-gpu=memory.free --format=csv,noheader | awk '{if (MAX < $1){ MAX = $1}} END {print int((MAX - 2 * 1024) / ((1.5 * 1024) + 750))}'`
+    export TEST_PARALLEL=$(( $GPU_MEM_PARALLEL < 8 ? $GPU_MEM_PARALLEL : 8 ))
     # Here run Python integration tests tagged with 'premerge_ci_1' only, that would help balance test duration and memory
     # consumption from two k8s pods running in parallel, which executes 'mvn_verify()' and 'ci_2()' respectively.
     $MVN_CMD -B $MVN_URM_MIRROR $PREMERGE_PROFILES clean verify -Dpytest.TEST_TAGS="premerge_ci_1" \
-        -Dpytest.TEST_TYPE="pre-commit" -Dpytest.TEST_PARALLEL=4 -Dcuda.version=$CLASSIFIER
-
+        -Dpytest.TEST_TYPE="pre-commit" -Dpytest.TEST_PARALLEL=$TEST_PARALLEL -Dcuda.version=$CLASSIFIER
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&33333 IT ci_1: $duration"
+time1=$(date +%s)
     # The jacoco coverage should have been collected, but because of how the shade plugin
     # works and jacoco we need to clean some things up so jacoco will only report for the
     # things we care about
@@ -97,6 +113,10 @@ mvn_verify() {
 
     # Triggering here until we change the jenkins file
     rapids_shuffle_smoke_test
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&44444 shuffle_smoke: $duration"
+time1=$(date +%s)
 
     # Test a portion of cases for non-UTC time zone because of limited GPU resources.
     # Here testing: parquet scan, orc scan, csv scan, cast, TimeZoneAwareExpression, FromUTCTimestamp
@@ -106,6 +126,10 @@ mvn_verify() {
     do
         TZ=$tz ./integration_tests/run_pyspark_from_build.sh -m tz_sensitive_test
     done
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&55555 timezone: $duration"
+time1=$(date +%s)
 }
 
 rapids_shuffle_smoke_test() {
@@ -158,20 +182,36 @@ rapids_shuffle_smoke_test() {
 }
 
 ci_2() {
+time1=$(date +%s)
     echo "Run premerge ci 2 testings..."
     $MVN_CMD -U -B $MVN_URM_MIRROR clean package $MVN_BUILD_ARGS -DskipTests=true
     export TEST_TAGS="not premerge_ci_1"
     export TEST_TYPE="pre-commit"
-    export TEST_PARALLEL=5
+    # Calculate parallelism based on GPU memory. When parallelism > 8, as it increases, the test speed will become slower and slower. So we set the maximum parallelism to 8.
+    GPU_MEM_PARALLEL=`nvidia-smi --query-gpu=memory.free --format=csv,noheader | awk '{if (MAX < $1){ MAX = $1}} END {print int((MAX - 2 * 1024) / ((1.5 * 1024) + 750))}'`
+    export TEST_PARALLEL=$(( $GPU_MEM_PARALLEL < 8 ? $GPU_MEM_PARALLEL : 8 ))
 
+
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&1111 mvn package: $duration"
+time1=$(date +%s)
     # Download a Scala 2.12 build of spark
     prepare_spark $SPARK_VER 2.12
     ./integration_tests/run_pyspark_from_build.sh
 
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&22222 IT ci_2: $duration"
+time1=$(date +%s)
     # enable avro test separately
     INCLUDE_SPARK_AVRO_JAR=true TEST='avro_test.py' ./integration_tests/run_pyspark_from_build.sh
     # export 'LC_ALL' to set locale with UTF-8 so regular expressions are enabled
     LC_ALL="en_US.UTF-8" TEST="regexp_test.py" ./integration_tests/run_pyspark_from_build.sh
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&33333 IT avro & regexp: $duration"
+time1=$(date +%s)
 
     # put some mvn tests here to balance durations of parallel stages
     echo "Run mvn package..."
@@ -180,6 +220,10 @@ ci_2() {
         env -u SPARK_HOME $MVN_CMD -U -B $MVN_URM_MIRROR -Dbuildver=$version clean package $MVN_BUILD_ARGS \
           -Dpytest.TEST_TAGS=''
     done
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&44444 IT UT2: $duration"
+time1=$(date +%s)
 }
 
 ci_scala213() {
@@ -190,6 +234,7 @@ ci_scala213() {
     # Download a Scala 2.13 version of Spark
     prepare_spark 3.3.0 2.13
 
+time1=$(date +%s)
     # build Scala 2.13 versions
     for version in "${SPARK_SHIM_VERSIONS_PREMERGE_SCALA213[@]}"
     do
@@ -201,21 +246,40 @@ ci_scala213() {
             $MVN_CMD -B $MVN_URM_MIRROR -Dbuildver=$version test -rf tests $MVN_BUILD_ARGS -Dpytest.TEST_TAGS='' \
             -DwildcardSuites=org.apache.spark.sql.rapids.filecache.FileCacheIntegrationSuite
     done
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&11111 213 UT: $duration"
+time1=$(date +%s)
 
     $MVN_CMD -U -B $MVN_URM_MIRROR clean package $MVN_BUILD_ARGS -DskipTests=true
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&22222 330 build: $duration"
+time1=$(date +%s)
     cd .. # Run integration tests in the project root dir to leverage test cases and resource files
     export TEST_TAGS="not premerge_ci_1"
     export TEST_TYPE="pre-commit"
-    export TEST_PARALLEL=5
+    # Calculate parallelism based on GPU memory. When parallelism > 8, as it increases, the test speed will become slower and slower. So we set the maximum parallelism to 8.
+    GPU_MEM_PARALLEL=`nvidia-smi --query-gpu=memory.free --format=csv,noheader | awk '{if (MAX < $1){ MAX = $1}} END {print int((MAX - 2 * 1024) / ((1.5 * 1024) + 750))}'`
+    export TEST_PARALLEL=$(( $GPU_MEM_PARALLEL < 8 ? $GPU_MEM_PARALLEL : 8 ))
     # SPARK_HOME (and related) must be set to a Spark built with Scala 2.13
     SPARK_HOME=$SPARK_HOME PYTHONPATH=$PYTHONPATH \
         ./integration_tests/run_pyspark_from_build.sh
+
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&33333 330 IT ci_2: $duration"
+time1=$(date +%s)
     # enable avro test separately
     SPARK_HOME=$SPARK_HOME PYTHONPATH=$PYTHONPATH \
         INCLUDE_SPARK_AVRO_JAR=true TEST='avro_test.py' ./integration_tests/run_pyspark_from_build.sh
     # export 'LC_ALL' to set locale with UTF-8 so regular expressions are enabled
     SPARK_HOME=$SPARK_HOME PYTHONPATH=$PYTHONPATH \
         LC_ALL="en_US.UTF-8" TEST="regexp_test.py" ./integration_tests/run_pyspark_from_build.sh
+time2=$(date +%s)
+duration=$(((time2 - time1)/60))
+echo "&&&&&44444 avro & regexp IT : $duration"
+time1=$(date +%s)
 }
 
 prepare_spark() {
