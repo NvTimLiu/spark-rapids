@@ -753,9 +753,7 @@
         <spark.shim.dest>${project.basedir}/target/${spark.version.classifier}/generated/src</spark.shim.dest>
         <noSnapshot.buildvers>
             320,
-            321cdh,
             330,
-            330cdh,
             332cdh,
             340,
             351
