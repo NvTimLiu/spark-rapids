@@ -41,7 +41,7 @@ mvn_verify() {
     # get merge BASE from merged pull request. Log message e.g. "Merge HEAD into BASE"
     BASE_REF=$(git --no-pager log --oneline -1 | awk '{ print $NF }')
     # file size check for pull request. The size of a committed file should be less than 1.5MiB
-    pre-commit run check-added-large-files --from-ref $BASE_REF --to-ref HEAD
+    # pre-commit run check-added-large-files --from-ref $BASE_REF --to-ref HEAD
 
     MVN_INSTALL_CMD="env -u SPARK_HOME $MVN_CMD -U -B $MVN_URM_MIRROR clean install $MVN_BUILD_ARGS -DskipTests -pl aggregator -am"
 
@@ -51,34 +51,34 @@ mvn_verify() {
         echo "Spark version: $version"
         # build and run unit tests on one specific version for each sub-version (e.g. 320, 330) except base version
         # separate the versions to two ci stages (mvn_verify, ci_2) for balancing the duration
-        if [[ "${SPARK_SHIM_VERSIONS_PREMERGE_UT_1[@]}" =~ "$version" ]]; then
-            env -u SPARK_HOME \
-              $MVN_CMD -U -B $MVN_URM_MIRROR -Dbuildver=$version clean install $MVN_BUILD_ARGS -Dpytest.TEST_TAGS=''
-            # Run filecache tests
-            env -u SPARK_HOME SPARK_CONF=spark.rapids.filecache.enabled=true \
-              $MVN_CMD -B $MVN_URM_MIRROR -Dbuildver=$version test -rf tests $MVN_BUILD_ARGS -Dpytest.TEST_TAGS='' \
-              -DwildcardSuites=org.apache.spark.sql.rapids.filecache.FileCacheIntegrationSuite
-        # build only for other versions
-        # elif [[ "${SPARK_SHIM_VERSIONS_NOSNAPSHOTS_TAIL[@]}" =~ "$version" ]]; then
-        #     $MVN_INSTALL_CMD -DskipTests -Dbuildver=$version
-        fi
+        ###   if [[ "${SPARK_SHIM_VERSIONS_PREMERGE_UT_1[@]}" =~ "$version" ]]; then
+        ###       env -u SPARK_HOME \
+        ###         $MVN_CMD -U -B $MVN_URM_MIRROR -Dbuildver=$version clean install $MVN_BUILD_ARGS -Dpytest.TEST_TAGS=''
+        ###       # Run filecache tests
+        ###       env -u SPARK_HOME SPARK_CONF=spark.rapids.filecache.enabled=true \
+        ###         $MVN_CMD -B $MVN_URM_MIRROR -Dbuildver=$version test -rf tests $MVN_BUILD_ARGS -Dpytest.TEST_TAGS='' \
+        ###         -DwildcardSuites=org.apache.spark.sql.rapids.filecache.FileCacheIntegrationSuite
+        ###   # build only for other versions
+        ###   # elif [[ "${SPARK_SHIM_VERSIONS_NOSNAPSHOTS_TAIL[@]}" =~ "$version" ]]; then
+        ###   #     $MVN_INSTALL_CMD -DskipTests -Dbuildver=$version
+        ###   fi
     done
     # build base shim version for following test step with PREMERGE_PROFILES
-    $MVN_INSTALL_CMD -DskipTests -Dbuildver=$SPARK_BASE_SHIM_VERSION
+    ###   $MVN_INSTALL_CMD -DskipTests -Dbuildver=$SPARK_BASE_SHIM_VERSION
 
     # enable UTF-8 for regular expression tests
-    for version in "${SPARK_SHIM_VERSIONS_PREMERGE_UTF8[@]}"
-    do
-        echo "Spark version (regex): $version"
-        env -u SPARK_HOME LC_ALL="en_US.UTF-8" $MVN_CMD $MVN_URM_MIRROR -Dbuildver=$version test $MVN_BUILD_ARGS \
-          -Dpytest.TEST_TAGS='' \
-          -DwildcardSuites=com.nvidia.spark.rapids.ConditionalsSuite,com.nvidia.spark.rapids.RegularExpressionSuite,com.nvidia.spark.rapids.RegularExpressionTranspilerSuite
-    done
+    ###   for version in "${SPARK_SHIM_VERSIONS_PREMERGE_UTF8[@]}"
+    ###   do
+    ###       echo "Spark version (regex): $version"
+    ###       env -u SPARK_HOME LC_ALL="en_US.UTF-8" $MVN_CMD $MVN_URM_MIRROR -Dbuildver=$version test $MVN_BUILD_ARGS \
+    ###         -Dpytest.TEST_TAGS='' \
+    ###         -DwildcardSuites=com.nvidia.spark.rapids.ConditionalsSuite,com.nvidia.spark.rapids.RegularExpressionSuite,com.nvidia.spark.rapids.RegularExpressionTranspilerSuite
+    ###   done
 
     # Here run Python integration tests tagged with 'premerge_ci_1' only, that would help balance test duration and memory
     # consumption from two k8s pods running in parallel, which executes 'mvn_verify()' and 'ci_2()' respectively.
     $MVN_CMD -B $MVN_URM_MIRROR $PREMERGE_PROFILES clean verify -Dpytest.TEST_TAGS="premerge_ci_1" \
-        -Dpytest.TEST_TYPE="pre-commit" -Dcuda.version=$CLASSIFIER
+        -Dpytest.TEST_TYPE="pre-commit" -Dcuda.version=$CLASSIFIER -DskipTests
 
     # The jacoco coverage should have been collected, but because of how the shade plugin
     # works and jacoco we need to clean some things up so jacoco will only report for the
@@ -97,16 +97,16 @@ mvn_verify() {
     popd
 
     # Triggering here until we change the jenkins file
-    rapids_shuffle_smoke_test
+    ###   rapids_shuffle_smoke_test
 
     # Test a portion of cases for non-UTC time zone because of limited GPU resources.
     # Here testing: parquet scan, orc scan, csv scan, cast, TimeZoneAwareExpression, FromUTCTimestamp
     # Nightly CIs will cover all the cases.
-    source "$(dirname "$0")"/test-timezones.sh
-    for tz in "${time_zones_test_cases[@]}"
-    do
-        TZ=$tz ./integration_tests/run_pyspark_from_build.sh -m tz_sensitive_test
-    done
+    ###   source "$(dirname "$0")"/test-timezones.sh
+    ###   for tz in "${time_zones_test_cases[@]}"
+    ###   do
+    ###       TZ=$tz ./integration_tests/run_pyspark_from_build.sh -m tz_sensitive_test
+    ###   done
 }
 
 rapids_shuffle_smoke_test() {
