@@ -20,6 +20,7 @@
 
 set -ex
 
+# TODO: https://gitlab-master.nvidia.com/timl/spark-rapids-private/-/issues/14
 CUDF_VER=${CUDF_VER:-24.08}
 CUDA_VER=${CUDA_VER:-11.8}
 
