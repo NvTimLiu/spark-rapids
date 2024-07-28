@@ -20,6 +20,7 @@
 
 set -ex
 
+# TODO: https://github.com/NvTimLiu/spark-rapids/issues/124
 CUDF_VER=${CUDF_VER:-24.08}
 CUDA_VER=${CUDA_VER:-11.8}
 
