@@ -77,7 +77,9 @@ def test_split_positive_limit():
 
 @pytest.mark.parametrize('data_gen,delim', [(mk_str_gen('([ABC]{0,3}_?){0,7}'), '_'),
     (mk_str_gen('([MNP_]{0,3}\\.?){0,5}'), '.'),
-    (mk_str_gen('([123]{0,3}\\^?){0,5}'), '^')], ids=idfn)
+    (mk_str_gen('([123]{0,3}\\^?){0,5}'), '^'),
+    (mk_str_gen('([XYZ]{0,3}XYZ?){0,5}'), 'XYZ'),
+    (mk_str_gen('([DEF]{0,3}DELIM?){0,5}'), 'DELIM')], ids=idfn)
 def test_substring_index(data_gen,delim):
     assert_gpu_and_cpu_are_equal_collect(
             lambda spark : unary_op_df(spark, data_gen).select(
@@ -819,6 +821,22 @@ def test_conv_dec_to_from_hex(from_base, to_base, pattern):
         lambda spark: unary_op_df(spark, gen).select('a', f.conv(f.col('a'), from_base, to_base)),
         conf={'spark.rapids.sql.expression.Conv': True}
     )
+
+@pytest.mark.parametrize('from_base,to_base,expected_err_msg_prefix',
+                         [
+                             pytest.param(10, 15, '15 is not a supported target radix', id='to_base_unsupported'),
+                             pytest.param(11, 16, '11 is not a supported source radix', id='from_base_unsupported'),
+                             pytest.param(9, 17, 'both 9 and 17 are not a supported radix', id='both_base_unsupported')
+                         ])
+def test_conv_unsupported_base(from_base, to_base, expected_err_msg_prefix):
+    def do_conv(spark):
+        gen = StringGen()
+        df = unary_op_df(spark, gen).select('a', f.conv(f.col('a'), from_base, to_base))
+        explain_str = spark.sparkContext._jvm.com.nvidia.spark.rapids.ExplainPlan.explainPotentialGpuPlan(df._jdf, "ALL")
+        unsupported_base_str = f'{expected_err_msg_prefix}, only literal 10 or 16 are supported for source and target radixes'
+        assert unsupported_base_str in explain_str
+
+    with_cpu_session(do_conv)
 
 format_number_gens = integral_gens + [DecimalGen(precision=7, scale=7), DecimalGen(precision=18, scale=0),
                                       DecimalGen(precision=18, scale=3), DecimalGen(precision=36, scale=5),
