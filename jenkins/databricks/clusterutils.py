@@ -85,6 +85,8 @@ class ClusterUtils(object):
             if current_state in ['INTERNAL_ERROR', 'SKIPPED', 'TERMINATED'] or p >= 60:
                 if p >= retries:
                    print("Waited %d times already, stopping" % p)
+                # print the clusterid to stdout so a calling script can get it easily
+                print(clusterid, file=sys.stdout)
                 sys.exit(4)
             p = p + 1
         print("Done starting cluster", file=printLoc)
