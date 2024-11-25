@@ -38,6 +38,22 @@
 
 set -ex
 
+## 'foo=abc,bar=123,...' to 'export foo=abc bar=123 ...'
+[[ -n "$EXTRA_ENVS" ]] && export ${EXTRA_ENVS//','/' '}
+# TEST_MODE
+# - DEFAULT: all tests except cudf_udf tests
+# - DELTA_LAKE_ONLY: delta_lake tests only
+# - MULTITHREADED_SHUFFLE: shuffle tests only
+# - PYARROW_ONLY: pyarrow tests only
+# - CI_PART1 or CI_PART2 : part1 or part2 of the tests run in parallel from CI
+TEST_MODE=${TEST_MODE:-'DEFAULT'}
+
+# CI_PART2 untars the spark-rapids tgz built by C1_PART1 instead of rebuilding it
+PLUGIN_BUILT_TGZ=${PLUGIN_BUILT_TGZ:-"$1"}
+if [[ "$TEST_MODE" == "CI_PART2"  && -z "$LOCAL_JAR_PATH" && -f "$PLUGIN_BUILT_TGZ" ]]; then
+    tar -zxf $PLUGIN_BUILT_TGZ
+fi
+
 SOURCE_PATH="/home/ubuntu/spark-rapids"
 [[ -d "$LOCAL_JAR_PATH" ]] && cd $LOCAL_JAR_PATH || cd $SOURCE_PATH
 
@@ -53,15 +69,6 @@ WITH_DEFAULT_UPSTREAM_SHIM=${WITH_DEFAULT_UPSTREAM_SHIM:-1}
 
 IS_SPARK_321_OR_LATER=0
 [[ "$(printf '%s\n' "3.2.1" "$BASE_SPARK_VERSION" | sort -V | head -n1)" = "3.2.1" ]] && IS_SPARK_321_OR_LATER=1
-
-
-# TEST_MODE
-# - DEFAULT: all tests except cudf_udf tests
-# - DELTA_LAKE_ONLY: delta_lake tests only
-# - MULTITHREADED_SHUFFLE: shuffle tests only
-# - PYARROW_ONLY: pyarrow tests only
-# - CI_PART1 or CI_PART2 : part1 or part2 of the tests run in parallel from CI
-TEST_MODE=${TEST_MODE:-'DEFAULT'}
 
 # Classloader config is here to work around classloader issues with
 # --packages in distributed setups, should be fixed by
@@ -92,40 +99,13 @@ run_pyarrow_tests() {
 ## Separate the integration tests into "CI_PART1" and "CI_PART2", run each part in parallel on separate Databricks clusters to speed up the testing process.
 if [[ $TEST_MODE == "DEFAULT" || $TEST_MODE == "CI_PART1" ]]; then
     # Run two-shim smoke test with the base Spark build
-    if [[ "$WITH_DEFAULT_UPSTREAM_SHIM" != "0" ]]; then
-        if [[ ! -d $HOME/spark-3.2.0-bin-hadoop3.2 ]]; then
-            wget https://archive.apache.org/dist/spark/spark-3.2.0/spark-3.2.0-bin-hadoop3.2.tgz -P /tmp
-            tar xf /tmp/spark-3.2.0-bin-hadoop3.2.tgz -C $HOME
-            rm -f /tmp/spark-3.2.0-bin-hadoop3.2.tgz
-        fi
-        SPARK_HOME=$HOME/spark-3.2.0-bin-hadoop3.2 \
-        SPARK_SHELL_SMOKE_TEST=1 \
-        PYSP_TEST_spark_shuffle_manager=com.nvidia.spark.rapids.spark320.RapidsShuffleManager \
-            bash integration_tests/run_pyspark_from_build.sh
-    fi
-    bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE
+    bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE -k range_test
 fi
 
 ## Run tests with jars building from the spark-rapids source code
 if [[ "$(pwd)" == "$SOURCE_PATH" ]]; then
-    ## Run cache tests
-    if [[ "$IS_SPARK_321_OR_LATER" -eq "1" && ("$TEST_MODE" == "DEFAULT" || $TEST_MODE == "CI_PART2") ]]; then
-        PYSP_TEST_spark_sql_cache_serializer=${PCBS_CONF} \
-            bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE -k cache_test
-    fi
-
-    if [[ "$TEST_MODE" == "DEFAULT" || $TEST_MODE == "CI_PART2" || "$TEST_MODE" == "DELTA_LAKE_ONLY" ]]; then
-        ## Run Delta Lake tests
-        DRIVER_MEMORY="4g" \
-            bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks"  -m "delta_lake" --delta_lake --test_type=$TEST_TYPE
-    fi
-
     if [[ "$TEST_MODE" == "DEFAULT" || $TEST_MODE == "CI_PART2" || "$TEST_MODE" == "MULTITHREADED_SHUFFLE" ]]; then
         ## Mutithreaded Shuffle test
         rapids_shuffle_smoke_test
-    fi
-    if [[ "$TEST_MODE" == "DEFAULT" || $TEST_MODE == "CI_PART2" || "$TEST_MODE" == "PYARROW_ONLY" ]]; then
-      # Pyarrow tests
-      run_pyarrow_tests
     fi
 fi

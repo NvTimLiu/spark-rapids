@@ -178,5 +178,17 @@ if [[ "$WITH_DEFAULT_UPSTREAM_SHIM" != "0" ]]; then
         -Dincluded_buildvers=$UPSTREAM_BUILDVER,$BUILDVER
 fi
 
+# Remove useless files, only keep files in the folder dist/target/parallel-world/META-INF/
+rm -rf dist/target/jni-deps/
+find dist/target/parallel-world/ -mindepth 1 -maxdepth 1 ! -name META-INF -exec rm -rf {} +
+
 cd /home/ubuntu
 tar -zcf spark-rapids-built.tgz spark-rapids
+
+# Back up spark rapids built jars for CI_PART2 to run integration tests
+TEST_MODE=${TEST_MODE:-'DEFAULT'}
+PLUGIN_BUILT_TGZ=${PLUGIN_BUILT_TGZ:-"$1"}
+if [[ "$TEST_MODE" == "CI_PART1"  && -n "$PLUGIN_BUILT_TGZ" ]]; then
+   mkdir -p $(dirname $PLUGIN_BUILT_TGZ)
+   cp spark-rapids-built.tgz $PLUGIN_BUILT_TGZ
+fi
