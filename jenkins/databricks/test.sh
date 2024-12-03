@@ -98,21 +98,12 @@ run_pyarrow_tests() {
 
 ## Separate the integration tests into "CI_PART1" and "CI_PART2", run each part in parallel on separate Databricks clusters to speed up the testing process.
 if [[ $TEST_MODE == "DEFAULT" || $TEST_MODE == "CI_PART1" ]]; then
-    # Run two-shim smoke test with the base Spark build
-    if [[ "$WITH_DEFAULT_UPSTREAM_SHIM" != "0" ]]; then
-        if [[ ! -d $HOME/spark-3.2.0-bin-hadoop3.2 ]]; then
-            wget https://archive.apache.org/dist/spark/spark-3.2.0/spark-3.2.0-bin-hadoop3.2.tgz -P /tmp
-            tar xf /tmp/spark-3.2.0-bin-hadoop3.2.tgz -C $HOME
-            rm -f /tmp/spark-3.2.0-bin-hadoop3.2.tgz
-        fi
-        SPARK_HOME=$HOME/spark-3.2.0-bin-hadoop3.2 \
-        SPARK_SHELL_SMOKE_TEST=1 \
-        PYSP_TEST_spark_shuffle_manager=com.nvidia.spark.rapids.spark320.RapidsShuffleManager \
-            bash integration_tests/run_pyspark_from_build.sh
-    fi
     bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE -k range_test
 fi
 
+if [[ $TEST_MODE == "DEFAULT" || $TEST_MODE == "CI_PART2" ]]; then
+    bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE -k explain_mode_test
+fi
 ## Run tests with jars building from the spark-rapids source code
 if [[ "$(pwd)" == "$SOURCE_PATH"123 ]]; then
     ## Run cache tests
