@@ -24,7 +24,7 @@ import hudson.model.Result
 import hudson.model.Run
 import jenkins.model.CauseOfInterruption.UserInterruption
 
-@Library('blossom-lib')
+@Library('tim-blossom-lib')
 @Library('blossom-github-lib@master')
 import ipp.blossom.*
 
@@ -39,6 +39,7 @@ def skipped = false
 def db_build = false
 def sourcePattern = 'shuffle-plugin/src/main/scala/,udf-compiler/src/main/scala/,' +
     'sql-plugin/src/main/java/,sql-plugin/src/main/scala/'
+def db_built_dir = "dbfs:/cicd/$BUILD_TAG"
 
 pipeline {
     agent {
@@ -286,7 +287,8 @@ git --no-pager diff --name-only HEAD \$BASE -- ${PREMERGE_DOCKERFILE} || true"""
                                 parameters: [
                                         string(name: 'REF', value: params.REF),
                                         string(name: 'GITHUB_DATA', value: params.GITHUB_DATA),
-                                        string(name: 'TEST_MODE', value: 'CI_PART1')
+                                        string(name: 'TEST_MODE', value: 'CI_PART1'),
+                                        string(name: 'PLUGIN_BUILT_DIR', value: "$db_built_dir"),
                                 ])
                             if ( DBJob.result != 'SUCCESS' ) {
                                 // Output Databricks failure logs to uploaded onto the pre-merge PR
@@ -304,12 +306,24 @@ git --no-pager diff --name-only HEAD \$BASE -- ${PREMERGE_DOCKERFILE} || true"""
                     }
                     steps {
                         script {
+                            // get DB runtimes from "DB_RUNTIME [space]+ values 'x.y', 'a.b'"
+                            def DbRuntimes = sh(script: 'grep -Pzo "DB_RUNTIME.*\n\s*values.*" jenkins/Jenkinsfile-blossom.premerge-databricks', returnStdout: true)
+                            // values 'x.y', 'a.b' --> x.y,a.b
+                            DbRuntimes = DBRuntimes.replaceAll(".*values|[\"']", '').trim()
+                            // x.y,a.b --> dbfs:/cicd/path/x.y/spark-rapids-built.tgz,dbfs:/cicd/path/x.y/spark-rapids-built.tgz
+                            def DbFiles = DbRuntimes.split(',').collect { "$db_built_dir/$it/spark-rapids-built.tgz" }.join(',')
+                            // wait for spark-rapids-built.tgz ready from CI_PART
+                            if (!DbUtils.allFilesExist(this, DbFiles, 60)) {
+                                error "spark-rapids-built.tgz is not ready for part2"
+                            }
+
                             githubHelper.updateCommitStatus("", "Running - includes databricks", GitHubCommitState.PENDING)
                             def DBJob = build(job: 'rapids-databricks_premerge-github',
                                 propagate: false, wait: true,
                                 parameters: [
                                         string(name: 'REF', value: params.REF),
                                         string(name: 'GITHUB_DATA', value: params.GITHUB_DATA),
+                                        string(name: 'PLUGIN_BUILT_DIR', value: "$db_built_dir"),
                                         string(name: 'TEST_MODE', value: 'CI_PART2')
                                 ])
                             if ( DBJob.result != 'SUCCESS' ) {
