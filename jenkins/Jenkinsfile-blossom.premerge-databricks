@@ -26,7 +26,7 @@
 
 import ipp.blossom.*
 
-def IMAGE_DB = pod.getCPUYAML("${common.ARTIFACTORY_NAME}/sw-spark-docker/spark:rapids-databricks")
+def IMAGE_DB = pod.getCPUYAML("${common.ARTIFACTORY_NAME}/sw-spark-docker/spark:rapids-databricks-v0.2")
 
 pipeline {
     agent {
@@ -77,6 +77,7 @@ pipeline {
         stage("Init githubHelper") {
             steps {
                 script {
+                    currentBuild.description = " | $TEST_MODE"
                     checkoutCode('https://github.com/NVTIMLIU/spark-rapids', 'db-code-opt')
                 }
             }
@@ -90,7 +91,7 @@ pipeline {
                         // 'name' and 'value' only supprt literal string in the declarative Jenkins
                         // Refer to Jenkins issue https://issues.jenkins.io/browse/JENKINS-62127
                         name 'DB_RUNTIME'
-                        values '11.3'
+                        values '11.3', '13.3'
                     }
                 }
                 stages {
@@ -140,7 +141,7 @@ void databricksBuild() {
     def pluginBuiltTar ="$PLUGIN_BUILT_DIR/$DB_RUNTIME/spark-rapids-built.tgz"
     // Map DBFS path to the local path into the cluster
     def buildArgs = (params.TEST_MODE == 'CI_PART1') ? pluginBuiltTar.replace('dbfs:/', '/dbfs/') : ''
-    def testArgs = params.TEST_MODE == 'CI_PART1') ? '' : buildArgs
+    def testArgs = (params.TEST_MODE == 'CI_PART2') ?  pluginBuiltTar.replace('dbfs:/', '/dbfs/') : ''
     try {
         stage("Create $SPARK_MAJOR DB") {
             dbStep = 'CREATE'
@@ -184,7 +185,7 @@ void databricksBuild() {
         if (CLUSTER_ID) {
             (dbStep == 'TEST') ? common.publishPytestResult(this, "Test against $SPARK_MAJOR DB") : ''
             retry(3) {
-                params.TEST_MODE == 'CI_PART1' ? DbUtils.cleanUp(this, "$PLUGIN_BUILT_DIR/$DB_RUNTIME") : ''
+                // params.TEST_MODE == 'CI_PART1' ? DbUtils.cleanUp(this, "$PLUGIN_BUILT_DIR/$DB_RUNTIME") : ''
                 env.INIT_SCRIPTS ? DbUtils.cleanUp(this, env.INIT_SCRIPTS_DIR) : ''
                 sh "python3 ./jenkins/databricks/shutdown.py -s $DATABRICKS_HOST -t $DATABRICKS_TOKEN -c $CLUSTER_ID -d"
             }
@@ -200,8 +201,7 @@ void checkoutCode(String url, String sha) {
             $class           : 'GitSCM', branches: [[name: sha]],
             userRemoteConfigs: [[
                                     credentialsId: 'github-token',
-                                    url          : url,
-                                    refspec      : '+refs/pull/*/merge:refs/remotes/origin/pr/*']],
+                                    url          : url]],
              extensions      : [[$class: 'CloneOption', shallow: true]]
         ]
     )
