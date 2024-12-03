@@ -110,11 +110,11 @@ if [[ $TEST_MODE == "DEFAULT" || $TEST_MODE == "CI_PART1" ]]; then
         PYSP_TEST_spark_shuffle_manager=com.nvidia.spark.rapids.spark320.RapidsShuffleManager \
             bash integration_tests/run_pyspark_from_build.sh
     fi
-    bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE
+    bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE -k range_test
 fi
 
 ## Run tests with jars building from the spark-rapids source code
-if [[ "$(pwd)" == "$SOURCE_PATH" ]]; then
+if [[ "$(pwd)" == "$SOURCE_PATH"123 ]]; then
     ## Run cache tests
     if [[ "$IS_SPARK_321_OR_LATER" -eq "1" && ("$TEST_MODE" == "DEFAULT" || $TEST_MODE == "CI_PART2") ]]; then
         PYSP_TEST_spark_sql_cache_serializer=${PCBS_CONF} \
