@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2020-2024, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2020-2025, NVIDIA CORPORATION. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -61,9 +61,6 @@ if [[ "$DIST_INCLUDES_DATABRICKS" == "true" ]] && [[ -n ${SPARK_SHIM_VERSIONS_DA
     DIST_PROFILE_OPT="$DIST_PROFILE_OPT,"$(IFS=,; echo "${SPARK_SHIM_VERSIONS_DATABRICKS[*]}")
 fi
 
-DEPLOY_TYPES='jar'
-DEPLOY_FILES="${DIST_FPATH}.jar"
-DEPLOY_CLASSIFIERS="$DEFAULT_CUDA_CLASSIFIER"
 # Make sure that the local m2 repo on the build machine has the same pom
 # installed as the one being pushed to the remote repo. This to prevent
 # discrepancies between the build machines regardless of how the local repo was populated.
@@ -76,16 +73,6 @@ function distWithReducedPom {
             mvnCmd="install:install-file"
             mvnExtraFlags="-Dpackaging=jar"
             ;;
-
-        deploy)
-            mvnCmd="deploy:deploy-file"
-            if (( ${#CLASSIFIERS_ARR[@]} > 1 )); then
-              # try move tmp artifacts back to target folder for simplifying separate release process
-              mv ${TMP_PATH}/${ART_ID}-${ART_VER}-*.jar ${DIST_PATH}/target/
-            fi
-            mvnExtraFlags="-Durl=${URM_URL}-local -DrepositoryId=snapshots -Dtypes=${DEPLOY_TYPES} -Dfiles=${DEPLOY_FILES} -Dclassifiers=${DEPLOY_CLASSIFIERS}"
-            ;;
-
         *)
             echo "Unknown command: $cmd"
             ;;
@@ -112,29 +99,29 @@ SKIP_TESTS=${SKIP_TESTS:-"false"}
 
 set +H # turn off history expansion
 DEPLOY_SUBMODULES=${DEPLOY_SUBMODULES:-"integration_tests"}
-for buildver in "${SPARK_SHIM_VERSIONS[@]:1}"; do
-    $MVN -U -B clean install $MVN_URM_MIRROR -Dmaven.repo.local=$M2DIR \
-        -Dcuda.version=$DEFAULT_CUDA_CLASSIFIER \
-        -DskipTests=$SKIP_TESTS \
-        -Dbuildver="${buildver}"
-    if [[ $SKIP_TESTS == "false" ]]; then
-      # Run filecache tests
-      SPARK_CONF=spark.rapids.filecache.enabled=true \
-          $MVN -B test -rf tests $MVN_URM_MIRROR -Dmaven.repo.local=$M2DIR \
-              -Dcuda.version=$DEFAULT_CUDA_CLASSIFIER \
-              -Dbuildver="${buildver}" \
-              -DwildcardSuites=org.apache.spark.sql.rapids.filecache.FileCacheIntegrationSuite
-    fi
-    distWithReducedPom "install"
-    [[ $SKIP_DEPLOY != 'true' ]] && \
-        # this deploys selected submodules
-        $MVN -B deploy -pl $DEPLOY_SUBMODULES $MVN_URM_MIRROR \
-            -Dmaven.repo.local=$M2DIR \
-            -Dcuda.version=$DEFAULT_CUDA_CLASSIFIER \
-            -DskipTests \
-            -Dmaven.scaladoc.skip -Dmaven.scalastyle.skip=true \
-            -Dbuildver="${buildver}"
-done
+###   for buildver in "${SPARK_SHIM_VERSIONS[@]:1}"; do
+###       $MVN -U -B clean install $MVN_URM_MIRROR -Dmaven.repo.local=$M2DIR \
+###           -Dcuda.version=$DEFAULT_CUDA_CLASSIFIER \
+###           -DskipTests=$SKIP_TESTS \
+###           -Dbuildver="${buildver}"
+###       if [[ $SKIP_TESTS == "false" ]]; then
+###         # Run filecache tests
+###         SPARK_CONF=spark.rapids.filecache.enabled=true \
+###             $MVN -B test -rf tests $MVN_URM_MIRROR -Dmaven.repo.local=$M2DIR \
+###                 -Dcuda.version=$DEFAULT_CUDA_CLASSIFIER \
+###                 -Dbuildver="${buildver}" \
+###                 -DwildcardSuites=org.apache.spark.sql.rapids.filecache.FileCacheIntegrationSuite
+###       fi
+###       distWithReducedPom "install"
+###       [[ $SKIP_DEPLOY != 'true' ]] && \
+###           # this deploys selected submodules
+###           $MVN -B deploy -pl $DEPLOY_SUBMODULES $MVN_URM_MIRROR \
+###               -Dmaven.repo.local=$M2DIR \
+###               -Dcuda.version=$DEFAULT_CUDA_CLASSIFIER \
+###               -DskipTests \
+###               -Dmaven.scaladoc.skip -Dmaven.scalastyle.skip=true \
+###               -Dbuildver="${buildver}"
+###   done
 
 installDistArtifact() {
   local cuda_version="$1"
@@ -150,45 +137,46 @@ installDistArtifact() {
 }
 
 # build extra cuda classifiers
-if (( ${#CLASSIFIERS_ARR[@]} > 1 )); then
-  mkdir -p ${TMP_PATH}
-  for classifier in "${CLASSIFIERS_ARR[@]}"; do
-    if [ "${classifier}" == "${DEFAULT_CUDA_CLASSIFIER}" ]; then
-      echo "skip default: ${DEFAULT_CUDA_CLASSIFIER} in build extra cuda classifiers step..."
-      continue
-    fi
-
-    opt=""
-    if [[ "${classifier}" == *"-arm64" ]]; then
-      opt="-Parm64"
-    fi
-    # pass cuda version and extra opt
-    installDistArtifact ${classifier%%-*} ${opt}
-
-    # move artifacts to temp for deployment later
-    artifactFile="${ART_ID}-${ART_VER}-${classifier}.jar"
-    mv ${DIST_PATH}/target/${artifactFile} ${TMP_PATH}/
-    # update deployment properties
-    DEPLOY_TYPES="${DEPLOY_TYPES},jar"
-    DEPLOY_FILES="${DEPLOY_FILES},${DIST_PL}/target/${artifactFile}"
-    DEPLOY_CLASSIFIERS="${DEPLOY_CLASSIFIERS},${classifier}"
-  done
-fi
-# build dist w/ default cuda classifier
-installDistArtifact ${DEFAULT_CUDA_CLASSIFIER}
-
-distWithReducedPom "install"
+###   if (( ${#CLASSIFIERS_ARR[@]} > 1 )); then
+###     mkdir -p ${TMP_PATH}
+###     for classifier in "${CLASSIFIERS_ARR[@]}"; do
+###       if [ "${classifier}" == "${DEFAULT_CUDA_CLASSIFIER}" ]; then
+###         echo "skip default: ${DEFAULT_CUDA_CLASSIFIER} in build extra cuda classifiers step..."
+###         continue
+###       fi
+###   
+###       opt=""
+###       if [[ "${classifier}" == *"-arm64" ]]; then
+###         opt="-Parm64"
+###       fi
+###       # pass cuda version and extra opt
+###       installDistArtifact ${classifier%%-*} ${opt}
+###   
+###       # move artifacts to temp for deployment later
+###       artifactFile="${ART_ID}-${ART_VER}-${classifier}.jar"
+###       mv ${DIST_PATH}/target/${artifactFile} ${TMP_PATH}/
+###     done
+###   fi
+###   # build dist w/ default cuda classifier
+###   installDistArtifact ${DEFAULT_CUDA_CLASSIFIER}
+###   
+###   distWithReducedPom "install"
 
 if [[ $SKIP_DEPLOY != 'true' ]]; then
-    distWithReducedPom "deploy"
-
     # this deploys selected submodules that is unconditionally built with Spark 3.2.0
-    $MVN -B deploy -pl "!${DIST_PL}" \
-        -Dbuildver=$SPARK_BASE_SHIM_VERSION \
-        -DskipTests \
-        -Dmaven.scaladoc.skip -Dmaven.scalastyle.skip=true \
-        $MVN_URM_MIRROR -Dmaven.repo.local=$M2DIR \
-        -Dcuda.version=$DEFAULT_CUDA_CLASSIFIER
+###       $MVN -B deploy -pl "!${DIST_PL}" \
+###           -Dbuildver=$SPARK_BASE_SHIM_VERSION \
+###           -DskipTests \
+###           -Dmaven.scaladoc.skip -Dmaven.scalastyle.skip=true \
+###           $MVN_URM_MIRROR -Dmaven.repo.local=$M2DIR \
+###           -Dcuda.version=$DEFAULT_CUDA_CLASSIFIER
+
+    # try move tmp artifacts back to target folder for simplifying separate release process
+    if (( ${#CLASSIFIERS_ARR[@]} > 1 )); then
+        mv ${TMP_PATH}/${ART_ID}-${ART_VER}-*.jar ${DIST_PATH}/target/ || true
+    fi
+    # Deploy dist jars in the final step to ensure that the POM files are not overwritten
+    SERVER_URL=${SERVER_URL:-"$URM_URL"} SERVER_ID=${SERVER_ID:-"snapshots"} jenkins/deploy.sh
 fi
 
 # Parse Spark files from local mvn repo
