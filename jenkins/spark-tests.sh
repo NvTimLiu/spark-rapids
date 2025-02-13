@@ -34,8 +34,8 @@ if [ "$CLASSIFIER"x == x ];then
     $WGET_CMD $PROJECT_REPO/com/nvidia/rapids-4-spark_$SCALA_BINARY_VER/$PROJECT_VER/rapids-4-spark_$SCALA_BINARY_VER-${PROJECT_VER}.jar
     export RAPIDS_PLUGIN_JAR=$ARTF_ROOT/rapids-4-spark_${SCALA_BINARY_VER}-${PROJECT_VER}.jar
 else
-    $WGET_CMD $PROJECT_REPO/com/nvidia/rapids-4-spark_$SCALA_BINARY_VER/$PROJECT_VER/rapids-4-spark_$SCALA_BINARY_VER-$PROJECT_VER-${CLASSIFIER}.jar
-    export RAPIDS_PLUGIN_JAR="$ARTF_ROOT/rapids-4-spark_${SCALA_BINARY_VER}-$PROJECT_VER-${CLASSIFIER}.jar"
+    $WGET_CMD https://urm.nvidia.com/artifactory/sw-spark-maven-local/com/nvidia/rapids-4-spark_2.12-dev/25.04.0-SNAPSHOT/rapids-4-spark_2.12-dev-25.04.0-20250212.131102-33-cuda11.jar
+    export RAPIDS_PLUGIN_JAR=$ARTF_ROOT/rapids-4-spark_2.12-dev-25.04.0-20250212.131102-33-cuda11.jar
 fi
 RAPIDS_TEST_JAR="$ARTF_ROOT/rapids-4-spark-integration-tests_${SCALA_BINARY_VER}-$PROJECT_TEST_VER-$SHUFFLE_SPARK_SHIM.jar"
 
