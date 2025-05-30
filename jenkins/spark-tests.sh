@@ -26,12 +26,14 @@ WORKSPACE=${WORKSPACE:-`pwd`}
 ARTF_ROOT="$WORKSPACE/jars"
 WGET_CMD="wget -q -P $ARTF_ROOT -t 3"
 
-rm -rf $ARTF_ROOT && mkdir -p $ARTF_ROOT
-$WGET_CMD $PROJECT_TEST_REPO/com/nvidia/rapids-4-spark-integration-tests_$SCALA_BINARY_VER/$PROJECT_TEST_VER/rapids-4-spark-integration-tests_$SCALA_BINARY_VER-$PROJECT_TEST_VER-${SHUFFLE_SPARK_SHIM}.jar
+rm -rf $ARTF_aOOT && mkdir -p $ARTF_ROOT
+$WGET_CMD $PROJECT_TEST_REPO/com/nvidia/rapids-4-spark-integration-tests_$SCALA_BINARY_VER/$PROJECT_TEST_VER/rapids-4-spark-integration-tests_2.13-25.08.0-20250528.173311-112-spark355.jar
+mv $ARTF_ROOT/rapids-4-spark-integration-tests_2.13-25.08.0-20250528.173311-112-spark355.jar $ARTF_ROOT/rapids-4-spark-integration-tests_2.13-25.08.0-SNAPSHOT-spark355.jar
 
 CLASSIFIER=${CLASSIFIER:-"$CUDA_CLASSIFIER"} # default as CUDA_CLASSIFIER for compatibility
 if [ "$CLASSIFIER"x == x ];then
-    $WGET_CMD $PROJECT_REPO/com/nvidia/rapids-4-spark_$SCALA_BINARY_VER/$PROJECT_VER/rapids-4-spark_$SCALA_BINARY_VER-${PROJECT_VER}.jar
+    $WGET_CMD $PROJECT_REPO/com/nvidia/rapids-4-spark_$SCALA_BINARY_VER/$PROJECT_VER/rapids-4-spark_2.13-25.08.0-20250528.174851-7.jar
+    mv r$ARTF_ROOT/apids-4-spark_2.13-25.08.0-20250528.174851-7.jar $ARTF_ROOT/rapids-4-spark_${SCALA_BINARY_VER}-${PROJECT_VER}.jar
     export RAPIDS_PLUGIN_JAR=$ARTF_ROOT/rapids-4-spark_${SCALA_BINARY_VER}-${PROJECT_VER}.jar
 else
     $WGET_CMD $PROJECT_REPO/com/nvidia/rapids-4-spark_$SCALA_BINARY_VER/$PROJECT_VER/rapids-4-spark_$SCALA_BINARY_VER-$PROJECT_VER-${CLASSIFIER}.jar
@@ -44,7 +46,9 @@ if [[ "${INCLUDE_SPARK_AVRO_JAR}" == "true" ]]; then
   $WGET_CMD $SPARK_REPO/org/apache/spark/spark-avro_$SCALA_BINARY_VER/$SPARK_VER/spark-avro_$SCALA_BINARY_VER-${SPARK_VER}.jar
 fi
 
-$WGET_CMD $PROJECT_TEST_REPO/com/nvidia/rapids-4-spark-integration-tests_$SCALA_BINARY_VER/$PROJECT_TEST_VER/rapids-4-spark-integration-tests_$SCALA_BINARY_VER-$PROJECT_TEST_VER-pytest.tar.gz
+$WGET_CMD $PROJECT_TEST_REPO/com/nvidia/rapids-4-spark-integration-tests_$SCALA_BINARY_VER/$PROJECT_TEST_VER/rapids-4-spark-integration-tests_2.13-25.08.0-20250528.173311-112-pytest.tar.gz 
+mv $ARTF_ROOT/rapids-4-spark-integration-tests_2.13-25.08.0-20250528.173311-112-pytest.tar.gz  $ARTF_ROOT/rapids-4-spark-integration-tests_$SCALA_BINARY_VER-$PROJECT_TEST_VER-pytest.tar.gz
+
 
 RAPIDS_INT_TESTS_HOME="$ARTF_ROOT/integration_tests/"
 # The version of pytest.tar.gz that is uploaded is the one built against spark320 but its being pushed without classifier for now
