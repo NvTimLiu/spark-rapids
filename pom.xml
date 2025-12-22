@@ -489,9 +489,10 @@
                 <module>delta-lake/delta-23x</module>
             </modules>
         </profile>
+
+        <!-- Note Databricks requires 2 properties -Ddatabricks and -Dbuildver=*db -->
+        <!-- #if scala-2.12 -->
         <profile>
-            <!-- Note Databricks requires 2 properties -Ddatabricks and -Dbuildver=330db -->
-            <!-- Note that 330db backports many features from Spark3.4.0 -->
             <id>release330db</id>
             <activation>
                 <property>
@@ -514,8 +515,6 @@
             </modules>
         </profile>
         <profile>
-            <!-- Note Databricks requires 2 properties -Ddatabricks and -Dbuildver=332db -->
-            <!-- Note that 332db backports many features from Spark3.4.0 -->
             <id>release332db</id>
             <activation>
                 <property>
@@ -538,7 +537,6 @@
             </modules>
         </profile>
         <profile>
-            <!-- Note Databricks requires 2 properties -Ddatabricks and -Dbuildver=341db -->
             <id>release341db</id>
             <activation>
                 <property>
@@ -585,7 +583,6 @@
             </modules>
         </profile>
         <profile>
-            <!-- Note Databricks requires 2 properties -Ddatabricks and -Dbuildver=350db143 -->
             <id>release350db143</id>
             <activation>
                 <property>
@@ -607,6 +604,7 @@
                 <module>delta-lake/delta-spark350db143</module>
             </modules>
         </profile>
+        <!-- #endif scala-2.12 -->
         <profile>
             <id>release351</id>
             <activation>
@@ -917,7 +915,11 @@
         <delta40x.version>4.0.0</delta40x.version>
         <!-- start dyn.shim properties -->
         <!--  TODO: Will remove 330db from the execluding list after the issue is fixed: https://github.com/NVIDIA/spark-rapids/issues/12694 -->
-	<dyn.shim.excluded.releases>330db</dyn.shim.excluded.releases>
+	<dyn.shim.excluded.releases>
+            <!-- #if scala-2.12 -->
+            330db
+            <!-- #endif scala-2.12 -->
+        </dyn.shim.excluded.releases>
         <!-- end dyn.shim properties -->
 
         <rapids.module>.</rapids.module>
