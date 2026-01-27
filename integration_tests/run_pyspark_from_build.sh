@@ -591,8 +591,9 @@ PY
         echo "SUCCESS Spark Connect smoke test"
     elif ((${#TEST_PARALLEL_OPTS[@]} > 0));
     then
-        exec python "${RUN_TESTS_COMMAND[@]}" "${TEST_PARALLEL_OPTS[@]}" "${TEST_COMMON_OPTS[@]}"
-    else
+echo "&&&&& exec python ${RUN_TESTS_COMMAND[@]} ${TEST_PARALLEL_OPTS[@]} ${TEST_COMMON_OPTS[@]}"
+    #    exec python "${RUN_TESTS_COMMAND[@]}" "${TEST_PARALLEL_OPTS[@]}" "${TEST_COMMON_OPTS[@]}"
+    #else
         if [[ "$USE_WORKER_LOGS" == "1" ]]; then
           # Setting the extraJavaOptions again to set the log4j confs that will be needed for writing logs in the expected location
           # We have to export it again because we want to be able to let the user override these confs by setting them on the
@@ -638,7 +639,7 @@ PY
         # Comment this out if you want to run remote debug this local mode spark process
         # Don't forget to set TEST_PARALLEL=1 to ensure local mode spark 
         # export SPARK_SUBMIT_OPTS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
-
+echo "&&&&&&&&&& exec $SPARK_HOME/spark-submit ${jarOpts[@]} ..."
         exec "$SPARK_HOME"/bin/spark-submit "${jarOpts[@]}" \
             --driver-java-options "$driverJavaOpts" \
             $SPARK_SUBMIT_FLAGS \
