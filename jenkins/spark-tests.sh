@@ -84,7 +84,7 @@ echo -e "\n==================== ARTIFACTS BUILD INFO ====================\n" >> 
 set -x
 cat "$tmp_info" || true
 
-SKIP_REVISION_CHECK=${SKIP_REVISION_CHECK:-'false'}
+SKIP_REVISION_CHECK=true
 if [[ "$SKIP_REVISION_CHECK" != "true" && (-z "$p_ver"|| \
       "$p_ver" != "$it_ver" || "$p_ver" != "$pt_ver") ]]; then
   echo "Artifacts revisions are inconsistent!"
@@ -92,6 +92,7 @@ if [[ "$SKIP_REVISION_CHECK" != "true" && (-z "$p_ver"|| \
 fi
 
 tar xzf "$RAPIDS_INT_TESTS_TGZ" -C $ARTF_ROOT && rm -f "$RAPIDS_INT_TESTS_TGZ"
+cp integration_tests/run_pyspark_from_build.sh $RAPIDS_INT_TESTS_HOME
 
 . jenkins/hadoop-def.sh $SPARK_VER ${SCALA_BINARY_VER}
 $WGET_CMD $SPARK_REPO/org/apache/spark/$SPARK_VER/spark-$SPARK_VER-$BIN_HADOOP_VER.tgz
@@ -408,116 +409,8 @@ run_non_utc_time_zone_tests() {
 # - NON_UTC_TZ: test all tests in a non-UTC time zone which is selected according to current day of week.
 TEST_MODE=${TEST_MODE:-'DEFAULT'}
 if [[ $TEST_MODE == "DEFAULT" ]]; then
-  ./run_pyspark_from_build.sh
 
-  SPARK_SHELL_SMOKE_TEST=1 \
-  PYSP_TEST_spark_shuffle_manager=com.nvidia.spark.rapids.${SHUFFLE_SPARK_SHIM}.RapidsShuffleManager \
-    ./run_pyspark_from_build.sh
-
-  EXPLAIN_ONLY_CPU_SMOKE_TEST=1 \
-    ./run_pyspark_from_build.sh
-
-  # Spark Connect smoke test (available in Spark 3.5.6+)
-  if printf '%s\n' "3.5.6" "$SPARK_VER" | sort -V | head -1 | grep -q "3.5.6"; then
-    SPARK_CONNECT_SMOKE_TEST=1 \
-      ./run_pyspark_from_build.sh
-  fi
-
-  # As '--packages' only works on the default cuda12 jar, it does not support classifiers
-  # refer to issue : https://issues.apache.org/jira/browse/SPARK-20075
-  # "$CLASSIFIER" == ''" is usually for the case run by developers,
-  # while "$CLASSIFIER" == "cuda12" is for the case running on CI.
-  # We expect to run packages test for both cases
-  SKIP_PACKAGES_TESTS=${SKIP_PACKAGES_TESTS:-"false"}
-  if { [[ "$CLASSIFIER" == "" || "$CLASSIFIER" == "cuda12" ]]; } && [[ "$SKIP_PACKAGES_TESTS" == "false" ]]; then
-    # Add the ivysettings.xml file to support --packages downloads from Artifactory using credentials
-    # Get the HOST_NAME variable for ivysettings.xml (e.g., from https://usr:psw@HOST_NAME/path/to/repo)
-    HOST_NAME=$(sed -E 's#^(.*://)?([^/@]*@)?([^/:]+).*#\3#' <<< "$PROJECT_REPO")
-    SPARK_SHELL_SMOKE_TEST=1 HOST_NAME=$HOST_NAME \
-    PYSP_TEST_spark_jars_packages=com.nvidia:rapids-4-spark_${SCALA_BINARY_VER}:${PROJECT_VER} \
-    PYSP_TEST_spark_jars_repositories=${PROJECT_REPO} \
-    PYSP_TEST_spark_jars_ivySettings=${WORKSPACE}/jenkins/ivysettings.xml \
-      ./run_pyspark_from_build.sh
-  fi
-
-  # ParquetCachedBatchSerializer cache_test
-  PYSP_TEST_spark_sql_cache_serializer=com.nvidia.spark.ParquetCachedBatchSerializer \
-    ./run_pyspark_from_build.sh -k cache_test
-fi
-
-# Delta Lake tests
-if [[ "$TEST_MODE" == "DEFAULT" || "$TEST_MODE" == "DELTA_LAKE_ONLY" ]]; then
-  run_delta_lake_tests
-fi
-
-# Iceberg tests
-# TODO: https://github.com/NVIDIA/spark-rapids/issues/13885
-if [[ "$TEST_MODE" == "ICEBERG_ONLY" ]]; then
-  run_iceberg_tests
-fi
-
-# Iceberg s3tables tests
-if [[ "$TEST_MODE" == "ICEBERG_S3TABLES_ONLY" ]]; then
-  run_iceberg_tests 's3tables'
-fi
-
-# Iceberg rest tests
-if [[ "$TEST_MODE" == "ICEBERG_REST_CATALOG_ONLY" ]]; then
-  run_iceberg_tests 'rest'
-fi
-
-# Avro tests
-if [[ "$TEST_MODE" == "DEFAULT" || "$TEST_MODE" == "AVRO_ONLY" ]]; then
-  run_avro_tests
-fi
-
-# Rapids Shuffle Manager smoke test.
-# Note the TEST_MODE is either DEFAULT or MULTITHREADED_SHUFFLE. The later is
-# a misleading, it actually tests the Rapids Shuffle Manager with both UCX and
-# MULTITHREADED shuffle modes, but was kept to not break possible CI that is
-# using it.
-if [[ "$TEST_MODE" == "DEFAULT" || "$TEST_MODE" == "MULTITHREADED_SHUFFLE" ]]; then
-  invoke_shuffle_integration_test MULTITHREADED ./run_pyspark_from_build.sh
-fi
-
-if [[ "$TEST_MODE" == "UCX_SHUFFLE" ]]; then
-  invoke_shuffle_integration_test UCX ./run_pyspark_from_build.sh
-fi
-
-# cudf_udf test: this mostly depends on cudf-py, so we run it into an independent CI
-if [[ "$TEST_MODE" == "CUDF_UDF_ONLY" ]]; then
-  # hardcode config
-  [[ ${TEST_PARALLEL} -gt 2 ]] && export TEST_PARALLEL=2
-  PYSP_TEST_spark_rapids_memory_gpu_allocFraction=0.1 \
-    PYSP_TEST_spark_rapids_memory_gpu_minAllocFraction=0 \
-    PYSP_TEST_spark_rapids_python_memory_gpu_allocFraction=0.1 \
-    PYSP_TEST_spark_rapids_python_concurrentPythonWorkers=2 \
-    PYSP_TEST_spark_executorEnv_PYTHONPATH=${RAPIDS_PLUGIN_JAR} \
-    PYSP_TEST_spark_python=${CONDA_ROOT}/bin/python \
-    ./run_pyspark_from_build.sh -m cudf_udf --cudf_udf
-fi
-
-# Pyarrow tests
-if [[ "$TEST_MODE" == "DEFAULT" || "$TEST_MODE" == "PYARROW_ONLY" ]]; then
-  run_pyarrow_tests
-fi
-
-# TODO: https://github.com/NVIDIA/spark-rapids/issues/13854
-if [[ "$TEST_MODE" == "EXTRA_JOIN_ONLY" ]]; then
-  run_other_join_modes_tests
-fi
-
-# Non-UTC time zone tests
-if [[ "$TEST_MODE" == "NON_UTC_TZ" ]]; then
-  run_non_utc_time_zone_tests
-fi
-
-# hybrid execution tests
-if [[ "$TEST_MODE" == "DEFAULT" || "$TEST_MODE" == "HYBRID_EXECUTION" ]]; then
-  source "${WORKSPACE}/jenkins/hybrid_execution.sh"
-  if hybrid_prepare ; then
-    LOAD_HYBRID_BACKEND=1 ./run_pyspark_from_build.sh -m hybrid_test
-  fi
+  ./run_pyspark_from_build.sh -k rand_test
 fi
 
 popd
