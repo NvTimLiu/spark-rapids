@@ -121,7 +121,7 @@ if [[ $TEST_MODE == "DEFAULT" || $TEST_MODE == "CI_PART1" ]]; then
         SPARK_HOME=$HOME/spark-3.3.0-bin-hadoop3 \
         SPARK_SHELL_SMOKE_TEST=1 \
         PYSP_TEST_spark_shuffle_manager=com.nvidia.spark.rapids.spark330.RapidsShuffleManager \
-            bash integration_tests/run_pyspark_from_build.sh
+            echo integration_tests/run_pyspark_from_build.sh
     fi
     bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE
 fi

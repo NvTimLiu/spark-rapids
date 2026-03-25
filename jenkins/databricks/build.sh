@@ -170,6 +170,10 @@ initialize()
     SKIP_DEP_INSTALL=${SKIP_DEP_INSTALL:-'0'}
     # export 'M2DIR' so that shims can get the correct Spark dependency info
     export M2DIR=/home/ubuntu/.m2/repository
+    wget -P /tmp https://urm.nvidia.com/artifactory/sw-spark-maven-local/com/nvidia/spark-rapids-jni/26.04.0-SNAPSHOT/spark-rapids-jni-26.04.0-20260324.054918-48.jar
+    mvn install:install-file -Dfile=/tmp/spark-rapids-jni-26.04.0-20260324.054918-48.jar -DgroupId=com.nvidia -DartifactId=spark-rapids-jni -Dversion=26.04.0-SNAPSHOT -Dpackaging=jar
+    mvn install:install-file -Dfile=/tmp/spark-rapids-jni-26.04.0-20260324.054918-48.jar -DgroupId=com.nvidia -DartifactId=spark-rapids-jni -Dversion=26.04.0-SNAPSHOT -Dpackaging=jar -Dclassifier=cuda12
+    mvn dependency:get -Dartifact=com.nvidia:spark-rapids-jni:26.04.0-SNAPSHOT:cuda12:jar
     # whether to build a two-shim jar with the lowest supported upstream Spark version
     WITH_DEFAULT_UPSTREAM_SHIM=${WITH_DEFAULT_UPSTREAM_SHIM:-1}
 
