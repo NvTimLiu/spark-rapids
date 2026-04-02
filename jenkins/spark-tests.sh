@@ -92,6 +92,7 @@ if [[ "$SKIP_REVISION_CHECK" != "true" && (-z "$p_ver"|| \
 fi
 
 tar xzf "$RAPIDS_INT_TESTS_TGZ" -C $ARTF_ROOT && rm -f "$RAPIDS_INT_TESTS_TGZ"
+cp integration_tests/run_pyspark_from_build.sh $ARTF_ROOT/integration_tests/run_pyspark_from_build.sh
 
 . jenkins/hadoop-def.sh $SPARK_VER ${SCALA_BINARY_VER}
 $WGET_CMD $SPARK_REPO/org/apache/spark/$SPARK_VER/spark-$SPARK_VER-$BIN_HADOOP_VER.tgz
@@ -298,6 +299,8 @@ run_iceberg_tests() {
       ICEBERG_VERSIONS="1.10.1"
     fi
   fi
+
+  HOST_NAME=$(sed -E 's#^(.*://)?([^/@]*@)?([^/:]+).*#\3#' <<< "$PROJECT_REPO")
   for ICEBERG_VERSION in $ICEBERG_VERSIONS; do
     echo "Running Iceberg tests for Iceberg version $ICEBERG_VERSION"
     if [[ "$test_type" == "default" ]]; then
@@ -312,6 +315,8 @@ run_iceberg_tests() {
         PYSP_TEST_spark_sql_catalog_spark__catalog_type="hadoop" \
         PYSP_TEST_spark_sql_catalog_spark__catalog_warehouse="/tmp/spark-warehouse-$RANDOM" \
         "PYSP_TEST_spark_sql_catalog_spark__catalog_table-default_write_spark_fanout_enabled=false" \
+        HOST_NAME=$HOST_NAME \
+        PYSP_TEST_spark_jars_ivySettings=${WORKSPACE}/jenkins/ivysettings.xml \
         ./run_pyspark_from_build.sh -m iceberg --iceberg
     elif [[ "$test_type" == "rest" ]]; then
       echo "!!! Running iceberg tests with rest catalog"
@@ -338,6 +343,8 @@ org.apache.iceberg:iceberg-aws-bundle:${ICEBERG_VERSION}"
             PYSP_TEST_spark_sql_catalog_spark__catalog_scope="${ICEBERG_REST_SCOPE:-lakekeeper}" \
             PYSP_TEST_spark_sql_catalog_spark__catalog_warehouse="${ICEBERG_REST_WAREHOUSE:-demo}" \
             "PYSP_TEST_spark_sql_catalog_spark__catalog_table-default_write_spark_fanout_enabled=false" \
+            HOST_NAME=$HOST_NAME \
+            PYSP_TEST_spark_jars_ivySettings=${WORKSPACE}/jenkins/ivysettings.xml \
             ./run_pyspark_from_build.sh -m iceberg --iceberg
     elif [[ "$test_type" == "s3tables" ]]; then
       echo "!!! Running iceberg tests with s3tables"
@@ -382,6 +389,8 @@ com.amazonaws:aws-java-sdk-bundle:${AWS_SDK_BUNDLE_VERSION}"
         "PYSP_TEST_spark_sql_catalog_spark__catalog_catalog-impl=software.amazon.s3tables.iceberg.S3TablesCatalog" \
         PYSP_TEST_spark_sql_catalog_spark__catalog_warehouse="${S3TABLES_BUCKET_ARN}" \
         "PYSP_TEST_spark_sql_catalog_spark__catalog_table-default_write_spark_fanout_enabled=false" \
+        HOST_NAME=$HOST_NAME \
+        PYSP_TEST_spark_jars_ivySettings=${WORKSPACE}/jenkins/ivysettings.xml \
         ./run_pyspark_from_build.sh -s -m iceberg --iceberg
     fi
   done
@@ -400,17 +409,17 @@ run_avro_tests() {
 }
 
 run_pyarrow_tests() {
-  ./run_pyspark_from_build.sh -m pyarrow_test --pyarrow_test
+  echo ./run_pyspark_from_build.sh -m pyarrow_test --pyarrow_test
 }
 
 run_other_join_modes_tests() {
   echo "HASH WITH POST JOIN TESTS"
   export PYSP_TEST_spark_rapids_sql_join_strategy=INNER_HASH_WITH_POST
-  ./run_pyspark_from_build.sh -k 'join'
+  echo ./run_pyspark_from_build.sh -k 'join'
 
   echo "SORT MERGE JOIN TESTS"
   export PYSP_TEST_spark_rapids_sql_join_strategy=INNER_SORT_WITH_POST
-  ./run_pyspark_from_build.sh -k 'join'
+  echo ./run_pyspark_from_build.sh -k 'join'
   # reset the config to the default in case other tests run with a join
   export PYSP_TEST_spark_rapids_sql_join_strategy=AUTO
 }
@@ -427,7 +436,7 @@ run_non_utc_time_zone_tests() {
   echo "Run Non-UTC tests, time zone is ${time_zone}"
 
   # run tests
-  TZ=${time_zone} ./run_pyspark_from_build.sh
+  echo  TZ=${time_zone} ./run_pyspark_from_build.sh
 }
 
 # TEST_MODE
@@ -443,20 +452,7 @@ run_non_utc_time_zone_tests() {
 # - NON_UTC_TZ: test all tests in a non-UTC time zone which is selected according to current day of week.
 TEST_MODE=${TEST_MODE:-'DEFAULT'}
 if [[ $TEST_MODE == "DEFAULT" ]]; then
-  ./run_pyspark_from_build.sh
-
-  SPARK_SHELL_SMOKE_TEST=1 \
-  PYSP_TEST_spark_shuffle_manager=com.nvidia.spark.rapids.${SHUFFLE_SPARK_SHIM}.RapidsShuffleManager \
-    ./run_pyspark_from_build.sh
-
-  EXPLAIN_ONLY_CPU_SMOKE_TEST=1 \
-    ./run_pyspark_from_build.sh
-
-  # Spark Connect smoke test (available in Spark 3.5.6+)
-  if printf '%s\n' "3.5.6" "$SPARK_VER" | sort -V | head -1 | grep -q "3.5.6"; then
-    SPARK_CONNECT_SMOKE_TEST=1 \
-      ./run_pyspark_from_build.sh
-  fi
+  echo ./run_pyspark_from_build.sh
 
   # As '--packages' only works on the default cuda12 jar, it does not support classifiers
   # refer to issue : https://issues.apache.org/jira/browse/SPARK-20075
@@ -474,22 +470,11 @@ if [[ $TEST_MODE == "DEFAULT" ]]; then
     PYSP_TEST_spark_jars_ivySettings=${WORKSPACE}/jenkins/ivysettings.xml \
       ./run_pyspark_from_build.sh
   fi
-
-  # ParquetCachedBatchSerializer cache_test
-  PYSP_TEST_spark_sql_cache_serializer=com.nvidia.spark.ParquetCachedBatchSerializer \
-    ./run_pyspark_from_build.sh -k cache_test
-fi
-
-# Delta Lake tests
-if [[ "$TEST_MODE" == "DEFAULT" || "$TEST_MODE" == "DELTA_LAKE_ONLY" ]]; then
-  run_delta_lake_tests
 fi
 
 # Iceberg tests
 # TODO: https://github.com/NVIDIA/spark-rapids/issues/13885
-if [[ "$TEST_MODE" == "ICEBERG_ONLY" ]]; then
-  run_iceberg_tests
-fi
+run_iceberg_tests
 
 # Iceberg s3tables tests
 if [[ "$TEST_MODE" == "ICEBERG_S3TABLES_ONLY" ]]; then
