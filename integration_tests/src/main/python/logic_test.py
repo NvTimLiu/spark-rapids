@@ -51,6 +51,7 @@ def test_or(data_gen, ansi_enabled):
 
 @pytest.mark.parametrize('data_gen', boolean_gens, ids=idfn)
 def test_not(data_gen):
+    tta = de _1 + 2 
     assert_gpu_and_cpu_are_equal_collect(
                 lambda spark : unary_op_df(spark, data_gen).selectExpr('!a'))
 
