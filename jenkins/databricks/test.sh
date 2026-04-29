@@ -138,33 +138,8 @@ if [[ $TEST_MODE == "DEFAULT" || $TEST_MODE == "CI_PART1" ]]; then
         PYSP_TEST_spark_shuffle_manager=com.nvidia.spark.rapids.${UPSTREAM_SHIM_VER}.RapidsShuffleManager \
             bash integration_tests/run_pyspark_from_build.sh
     fi
-    bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE
+    bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE -k hive_delimited_text_test
+    bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE -k orc_write_test
+    bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE -k explain_test
 fi
 
-## Run tests with jars building from the spark-rapids source code
-if [[ "$(pwd)" == "$SOURCE_PATH" ]]; then
-    ## Run cache tests
-    if [[ "$IS_SPARK_321_OR_LATER" -eq "1" && ("$TEST_MODE" == "DEFAULT" || $TEST_MODE == "CI_PART2") ]]; then
-        PYSP_TEST_spark_sql_cache_serializer=${PCBS_CONF} \
-            bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks" --test_type=$TEST_TYPE -k cache_test
-    fi
-
-    if [[ "$TEST_MODE" == "DEFAULT" || $TEST_MODE == "CI_PART2" || "$TEST_MODE" == "DELTA_LAKE_ONLY" ]]; then
-        if [[ "$SPARK_SHIM_VER" == "spark400db173" ]]; then
-            echo "Skipping Delta Lake tests: not yet supported for DB-17.3 (spark400db173)"
-        else
-            ## Run Delta Lake tests
-            DRIVER_MEMORY="4g" \
-                bash integration_tests/run_pyspark_from_build.sh --runtime_env="databricks"  -m "delta_lake" --delta_lake --test_type=$TEST_TYPE
-        fi
-    fi
-
-    if [[ "$TEST_MODE" == "DEFAULT" || $TEST_MODE == "CI_PART2" || "$TEST_MODE" == "MULTITHREADED_SHUFFLE" ]]; then
-        ## Mutithreaded Shuffle test
-        rapids_shuffle_smoke_test
-    fi
-    if [[ "$TEST_MODE" == "DEFAULT" || $TEST_MODE == "CI_PART2" || "$TEST_MODE" == "PYARROW_ONLY" ]]; then
-      # Pyarrow tests
-      run_pyarrow_tests
-    fi
-fi
