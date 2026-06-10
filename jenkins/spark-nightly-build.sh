@@ -231,6 +231,12 @@ installDistArtifact ${DEFAULT_CUDA_CLASSIFIER}
 
 distWithReducedPom "install"
 
+# Move tmp artifacts back to target folder so release archives include all
+# requested classifiers even when deploy is skipped in the build workspace.
+if (( ${#CLASSIFIERS_ARR[@]} > 1 )); then
+    mv ${TMP_PATH}/${ART_ID}-${ART_VER}-*.jar ${DIST_PATH}/target/
+fi
+
 if [[ $SKIP_DEPLOY != 'true' ]]; then
     # this deploys selected submodules that is unconditionally built with default Spark shim
     $MVN -B deploy -pl "!${DIST_PL}" \
@@ -240,10 +246,6 @@ if [[ $SKIP_DEPLOY != 'true' ]]; then
         $MVN_URM_MIRROR -Dmaven.repo.local=$M2DIR \
         -Dcuda.version=$DEFAULT_CUDA_CLASSIFIER
 
-    # try move tmp artifacts back to target folder for simplifying separate release process
-    if (( ${#CLASSIFIERS_ARR[@]} > 1 )); then
-        mv ${TMP_PATH}/${ART_ID}-${ART_VER}-*.jar ${DIST_PATH}/target/
-    fi
     # Deploy dist jars in the final step to ensure that the POM files are not overwritten
     SERVER_URL=${SERVER_URL:-"$ART_URL"} SERVER_ID=${SERVER_ID:-"snapshots"} jenkins/deploy.sh
 fi
