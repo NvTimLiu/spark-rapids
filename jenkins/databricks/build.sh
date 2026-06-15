@@ -264,7 +264,32 @@ rm -rf $DIST_TARGET/jni-deps/
 find $DIST_TARGET/parallel-world/ -mindepth 1 -maxdepth 1 ! -name META-INF -exec rm -rf {} +
 
 cd /home/ubuntu
-tar -zcf spark-rapids-built.tgz spark-rapids
+PACKAGE_MODULE_DIR="spark-rapids"
+if [[ "$SCALA_BINARY_VER" == "2.13" ]]; then
+    PACKAGE_MODULE_DIR="spark-rapids/scala2.13"
+fi
+
+shopt -s nullglob
+SPARK_RAPIDS_BUILT_FILES=(
+    "spark-rapids/jenkins/databricks/"
+    "spark-rapids/jenkins/settings.xml"
+    "spark-rapids/thirdparty/parquet-testing"
+    "$PACKAGE_MODULE_DIR/aggregator/pom.xml"
+    "$PACKAGE_MODULE_DIR/aggregator/target/$BUILDVER/"*.jar
+    "$PACKAGE_MODULE_DIR/dist/target/rapids-4-spark_${SCALA_VERSION}-"*.jar
+    "$PACKAGE_MODULE_DIR/integration_tests/"
+    "$PACKAGE_MODULE_DIR/pom.xml"
+    "$PACKAGE_MODULE_DIR/sql-plugin-api/pom.xml"
+    "$PACKAGE_MODULE_DIR/sql-plugin-api/target/"
+)
+
+EXISTING_SPARK_RAPIDS_BUILT_FILES=()
+for file in "${SPARK_RAPIDS_BUILT_FILES[@]}"; do
+    [[ -e "$file" ]] && EXISTING_SPARK_RAPIDS_BUILT_FILES+=("$file")
+done
+
+tar --exclude='__pycache__' --exclude='*.pyc' \
+    -zcf spark-rapids-built.tgz "${EXISTING_SPARK_RAPIDS_BUILT_FILES[@]}"
 
 # Back up spark rapids built jars for the CI_PART2 job to run integration tests
 TEST_MODE=${TEST_MODE:-'DEFAULT'}
