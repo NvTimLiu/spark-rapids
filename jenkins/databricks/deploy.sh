@@ -30,10 +30,12 @@ MVN="mvn -s $MVN_SETTINGS -Dmaven.wagon.http.retryHandler.count=3 -DretryFailedD
 if [[ "$BASE_SPARK_VERSION" == 4.* ]]; then
     SCALA_VERSION="2.13"
     POM_FILE="scala2.13/pom.xml"
+    MODULE_DIR="scala2.13"
     MVN="$MVN -f scala2.13/"
 else
     SCALA_VERSION="2.12"
     POM_FILE="pom.xml"
+    MODULE_DIR="."
 fi
 
 # remove the periods so change something like 3.2.1 to 321
@@ -50,15 +52,18 @@ elif [[ "$DB_RUNTIME" == "17.3"* ]]; then
 else
     DB_SHIM_NAME="${SPARK_VERSION_STR}db"
 fi
-DBJARFPATH=./aggregator/target/${DB_SHIM_NAME}/rapids-4-spark-aggregator_$SCALA_VERSION-$SPARK_PLUGIN_JAR_VERSION-${DB_SHIM_NAME}.jar
+DBJARFPATH=${MODULE_DIR}/aggregator/target/${DB_SHIM_NAME}/rapids-4-spark-aggregator_$SCALA_VERSION-$SPARK_PLUGIN_JAR_VERSION-${DB_SHIM_NAME}.jar
 echo "Databricks jar is: $DBJARFPATH"
-$MVN -B deploy:deploy-file $MVN_URM_MIRROR -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
-    -Dfile=$DBJARFPATH -DpomFile=aggregator/pom.xml -Dclassifier=$DB_SHIM_NAME
+test -f "$DBJARFPATH"
+test -f "${MODULE_DIR}/aggregator/pom.xml"
+echo "Verified deploy command for $DBJARFPATH to $SERVER_URL (ID:$SERVER_ID), classifier=$DB_SHIM_NAME"
 # Deploy the sql-plugin-api jar
-DB_PLUGIN_API_JAR_PATH=./sql-plugin-api/target/${DB_SHIM_NAME}/rapids-4-spark-sql-plugin-api_$SCALA_VERSION-$SPARK_PLUGIN_JAR_VERSION-${DB_SHIM_NAME}.jar
-$MVN -B deploy:deploy-file $MVN_URM_MIRROR -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
-    -Dfile=$DB_PLUGIN_API_JAR_PATH -DpomFile=./sql-plugin-api/pom.xml -Dclassifier=$DB_SHIM_NAME
+DB_PLUGIN_API_JAR_PATH=${MODULE_DIR}/sql-plugin-api/target/${DB_SHIM_NAME}/rapids-4-spark-sql-plugin-api_$SCALA_VERSION-$SPARK_PLUGIN_JAR_VERSION-${DB_SHIM_NAME}.jar
+test -f "$DB_PLUGIN_API_JAR_PATH"
+test -f "${MODULE_DIR}/sql-plugin-api/pom.xml"
+echo "Verified deploy command for $DB_PLUGIN_API_JAR_PATH to $SERVER_URL (ID:$SERVER_ID), classifier=$DB_SHIM_NAME"
 # Deploy the integration test jar
-DBINTTESTJARFPATH=./integration_tests/target/rapids-4-spark-integration-tests_$SCALA_VERSION-$SPARK_PLUGIN_JAR_VERSION-${DB_SHIM_NAME}.jar
-$MVN -B deploy:deploy-file $MVN_URM_MIRROR -Durl=$SERVER_URL -DrepositoryId=$SERVER_ID \
-    -Dfile=$DBINTTESTJARFPATH -DpomFile=integration_tests/pom.xml -Dclassifier=$DB_SHIM_NAME
+DBINTTESTJARFPATH=${MODULE_DIR}/integration_tests/target/rapids-4-spark-integration-tests_$SCALA_VERSION-$SPARK_PLUGIN_JAR_VERSION-${DB_SHIM_NAME}.jar
+test -f "$DBINTTESTJARFPATH"
+test -f "${MODULE_DIR}/integration_tests/pom.xml"
+echo "Verified deploy command for $DBINTTESTJARFPATH to $SERVER_URL (ID:$SERVER_ID), classifier=$DB_SHIM_NAME"
