@@ -16,7 +16,10 @@ import logging
 import os
 import pytest
 import re
+import shutil
 import stat
+import sys
+import tempfile
 import traceback
 
 logging.basicConfig(
@@ -100,6 +103,66 @@ def create_tmp_hive():
     except Exception as e:
         logging.warn(f"Failed to setup the hive scratch dir {path}. Error {e}")
 
+
+def _log_startup_path(path):
+    try:
+        path_stat = os.stat(path)
+        usage = shutil.disk_usage(path)
+        logging.error(
+            "Spark startup path: path=%s mode=%s uid=%s gid=%s "
+            "free_bytes=%s total_bytes=%s",
+            path,
+            stat.filemode(path_stat.st_mode),
+            path_stat.st_uid,
+            path_stat.st_gid,
+            usage.free,
+            usage.total)
+    except Exception:
+        logging.error("Unable to inspect Spark startup path %s:\n%s", path, traceback.format_exc())
+
+
+def _log_spark_startup_failure():
+    """Log diagnostics that are still available after the PySpark gateway exits."""
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'standalone')
+    logging.error(
+        "SparkSession startup failed: worker=%s pid=%s ppid=%s cwd=%s "
+        "python=%s version=%s",
+        worker_id,
+        os.getpid(),
+        os.getppid(),
+        os.getcwd(),
+        sys.executable,
+        sys.version.replace('\n', ' '))
+
+    for env_name in ('TMPDIR', 'TMP', 'TEMP', 'SPARK_HOME', 'JAVA_HOME'):
+        logging.error("Spark startup environment: %s=%r", env_name, os.environ.get(env_name))
+
+    paths = ['/tmp', tempfile.gettempdir(), os.getcwd()]
+    for path in dict.fromkeys(paths):
+        _log_startup_path(path)
+
+    for proc_file, keys in (
+            ('/proc/self/status', ('State:', 'Threads:', 'VmPeak:', 'VmSize:', 'VmRSS:')),
+            ('/proc/meminfo', ('MemAvailable:', 'MemFree:', 'SwapFree:', 'Committed_AS:'))):
+        try:
+            with open(proc_file, encoding='utf-8') as stream:
+                selected = [line.strip() for line in stream if line.startswith(keys)]
+            logging.error("Spark startup process data from %s: %s", proc_file, '; '.join(selected))
+        except Exception:
+            logging.error("Unable to inspect %s:\n%s", proc_file, traceback.format_exc())
+
+    worker_log = os.path.join(os.getcwd(), f'{worker_id}_worker_logs.log')
+    if os.path.isfile(worker_log):
+        try:
+            with open(worker_log, encoding='utf-8', errors='replace') as stream:
+                log_tail = stream.readlines()[-200:]
+            logging.error("Spark worker log tail from %s:\n%s", worker_log, ''.join(log_tail))
+        except Exception:
+            logging.error("Unable to read worker log %s:\n%s", worker_log, traceback.format_exc())
+    else:
+        logging.error("Spark worker log was not created: %s", worker_log)
+
+
 # Entry point into this file
 def pytest_sessionstart(session):
     # initializations that must happen globally once before tests start
@@ -147,8 +210,13 @@ def pytest_sessionstart(session):
         _handle_event_log_dir(_sb, 'gw0')
 
     # enableHiveSupport() is needed for parquet bucket tests
-    _s = _sb.enableHiveSupport() \
-            .appName('rapids spark plugin integration tests (python)').getOrCreate()
+    try:
+        _s = _sb.enableHiveSupport() \
+                .appName('rapids spark plugin integration tests (python)').getOrCreate()
+    except Exception:
+        logging.error("SparkSession initialization exception:\n%s", traceback.format_exc())
+        _log_spark_startup_failure()
+        raise
     #TODO catch the ClassNotFound error that happens if the classpath is not set up properly and
     # make it a better error message
     _s.sparkContext.setLogLevel("WARN")
@@ -317,4 +385,3 @@ def pytest_sessionfinish(session, exitstatus):
             logging.warning(f"Exception while stopping SparkSession: {e}")
         finally:
             _spark = None
-
