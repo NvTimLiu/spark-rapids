@@ -21,6 +21,7 @@ nvidia-smi
 
 . jenkins/version-def.sh
 . jenkins/shuffle-common.sh
+. jenkins/test-parallelism.sh
 
 # Get the shuffle shim for the current Spark version
 SHUFFLE_SPARK_SHIM=$(get_shuffle_shim)
@@ -248,17 +249,19 @@ if [[ $PARALLEL_TEST == "true" ]]; then
   fi
 
   if [[ "${PARALLELISM}" == "" ]]; then
-    PARALLELISM=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader | \
-      awk '{if (MAX < $1){ MAX = $1}} END {print int(MAX / (2 * 1024))}')
+    PARALLELISM=$(detect_test_parallelism)
+  elif [[ ! "${PARALLELISM}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "PARALLELISM must be a positive integer, but was '${PARALLELISM}'" >&2
+    exit 1
   fi
-  # parallelism > 5 could slow down the whole process, so we have a limitation for it
-  # this is based on our CI gpu types, so we do not put it into the run_pyspark_from_build.sh
-  # 1. If TEST_MODE is DEFAULT: Always limit to 5.
+  # Eight is the performance-tested upper bound. Auto-detected values already honor the running
+  # container's CPU, host-memory, and GPU-memory limits.
+  # 1. If TEST_MODE is DEFAULT: Always limit to 8.
   # 2. If TEST_MODE is NOT DEFAULT:
   #    a. If user set PARALLELISM: Use it directly (no limit).
-  #    b. If user did NOT set PARALLELISM (calculated): Limit to 5.
+  #    b. If user did NOT set PARALLELISM (calculated): Limit to 8.
   if [[ "${TEST_MODE:-DEFAULT}" == "DEFAULT" || "${USER_SET_PARALLELISM}" == "false" ]]; then
-    [[ ${PARALLELISM} -gt 5 ]] && PARALLELISM=5
+    [[ ${PARALLELISM} -gt 8 ]] && PARALLELISM=8
   fi
   MEMORY_FRACTION=$(python -c "print(1/($PARALLELISM + 0.1))")
 
