@@ -44,6 +44,23 @@ is_python_gateway_pid() {
       grep -Fq 'org.apache.spark.api.python.PythonGatewayServer'
 }
 
+check_gpu_health() {
+  local gpu_health
+
+  if ! gpu_health=$(nvidia-smi -q 2>&1); then
+    echo "nvidia-smi failed before the integration test"
+    echo "$gpu_health"
+    return 1
+  fi
+
+  echo "$gpu_health" | grep -E 'Product Name|Addressing Mode|VBIOS Version'
+  if echo "$gpu_health" | \
+      grep -qiE 'Addressing Mode[[:space:]]*:[[:space:]]*Unknown Error|VBIOS Version[[:space:]]*:[[:space:]]*00[.]00[.]00[.]00[.]00'; then
+    echo "GPU health check detected an unusable device"
+    return 1
+  fi
+}
+
 dump_failure_diagnostics() {
   echo "==================== DATABRICKS IT FAILURE DIAGNOSTICS ===================="
   date -u
@@ -136,6 +153,11 @@ terminate_test_gateways() {
 }
 
 initial_gateway_pids=$(list_python_gateway_pids | tr '\n' ' ')
+
+if ! check_gpu_health; then
+  dump_failure_diagnostics
+  exit 1
+fi
 
 set +e
 # Run integration testing
