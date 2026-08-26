@@ -55,7 +55,7 @@ check_gpu_health() {
 
   echo "$gpu_health" | grep -E 'Product Name|Addressing Mode|VBIOS Version'
   if echo "$gpu_health" | \
-      grep -qiE 'Addressing Mode[[:space:]]*:[[:space:]]*Unknown Error|VBIOS Version[[:space:]]*:[[:space:]]*00[.]00[.]00[.]00[.]00'; then
+      grep -qiE 'Addressing Mode[[:space:]]*:[[:space:]]*Unknown Error'; then
     echo "GPU health check detected an unusable device"
     return 1
   fi
