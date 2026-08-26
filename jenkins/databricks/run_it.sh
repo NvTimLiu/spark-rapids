@@ -45,20 +45,27 @@ is_python_gateway_pid() {
 }
 
 check_gpu_health() {
+  local check
   local gpu_health
 
-  if ! gpu_health=$(nvidia-smi -q 2>&1); then
-    echo "nvidia-smi failed before the integration test"
-    echo "$gpu_health"
-    return 1
-  fi
+  for check in 1 2 3; do
+    echo "GPU health sample ${check}/3"
+    if ! gpu_health=$(nvidia-smi -q 2>&1); then
+      echo "nvidia-smi failed before the integration test"
+      echo "$gpu_health"
+      return 1
+    fi
 
-  echo "$gpu_health" | grep -E 'Product Name|Addressing Mode|VBIOS Version'
-  if echo "$gpu_health" | \
-      grep -qiE 'Addressing Mode[[:space:]]*:[[:space:]]*Unknown Error'; then
-    echo "GPU health check detected an unusable device"
-    return 1
-  fi
+    echo "$gpu_health" | grep -E 'Product Name|Addressing Mode|VBIOS Version'
+    if echo "$gpu_health" | \
+        grep -qiE 'Addressing Mode[[:space:]]*:[[:space:]]*Unknown Error'; then
+      echo "GPU health check detected an unusable device"
+      return 1
+    fi
+    if [[ "$check" -lt 3 ]]; then
+      sleep 5
+    fi
+  done
 }
 
 dump_failure_diagnostics() {
