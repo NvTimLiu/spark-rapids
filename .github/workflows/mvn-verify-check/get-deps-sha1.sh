@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# Copyright (c) 2024-2026, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ set -e
 scala_ver=${1:-"2.12"}
 base_URL="https://central.sonatype.com/repository/maven-snapshots/com/nvidia"
 project_jni="spark-rapids-jni"
-project_private="rapids-4-spark-private_${scala_ver}"
+project_private="cudf-spark-private_${scala_ver}"
 project_hybrid="rapids-4-spark-hybrid_${scala_ver}"
 
 jni_ver=$(mvn help:evaluate -q -pl dist -Dexpression=spark-rapids-jni.version -DforceStdout)
